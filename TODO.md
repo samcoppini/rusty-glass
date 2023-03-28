@@ -1,0 +1,77 @@
+Glass Interpreter Feature List:
+
+- [ ] Language implementation
+    - [ ] Implement name push commands
+        - [x] Single character names
+        - [ ] Multi-character names
+        - [x] Global names
+        - [x] Member names
+        - [ ] Local names
+    - [ ] Implement number push commands
+        - [ ] Integers
+        - [ ] Floats
+    - [ ] Implement string push commands
+        - [x] Basic strings
+        - [ ] Strings with escape sequences
+    - [ ] Implement duplication commands
+        - [ ] Single-character duplicate command
+        - [ ] Multi-character duplicate command
+    - [ ] Implement instantiation command
+        - [x] Instantiate objects
+        - [ ] Calls constructors
+    - [ ] Implement loops
+    - [ ] Other, single-character commands:
+        - [ ] Implement `,` command
+        - [ ] Implement `*` command
+        - [ ] Implement `^` command
+        - [ ] Implement `$` command
+        - [ ] Implement `=` command
+        - [x] Implement `?` command
+        - [x] Implement `.` command
+    - [ ] Comments
+- [ ] Standard library implementation
+    - [ ] `A` class
+        - [ ] `a` function
+        - [ ] `d` function
+        - [ ] `e` function
+        - [ ] `f` function
+        - [ ] `ge` function
+        - [ ] `gt` function
+        - [ ] `le` function
+        - [ ] `lt` function
+        - [ ] `mod` function
+        - [ ] `ne` function
+        - [ ] `s` function
+    - [ ] `I` class
+        - [ ] `c` function
+        - [ ] `e` function
+        - [ ] `l` function
+    - [ ] `O` class
+        - [x] `o` function
+        - [ ] `on` function
+    - [ ] `S` class
+        - [ ] `a` function
+        - [ ] `d` function
+        - [ ] `e` function
+        - [ ] `i` function
+        - [ ] `l` function
+        - [ ] `ns` function
+        - [ ] `si` function
+        - [ ] `sn` function
+    - [ ] `V` class
+        - [ ] `d` function
+        - [ ] `n` function
+- [ ] Other features:
+    - [ ] Garbage collection
+    - [ ] Multi-file programs
+    - [ ] Reporting multiple error messages when parsing
+    - [ ] Meaningful error messages for parse errors
+    - [ ] Stack traces for runtime errors
+    - [ ] Environment variables as preset global variables
+- [ ] Potential extensions ?
+    - [ ] Standary library extensions
+        - [ ] Functions for accessing command line args
+        - [ ] Functions for dealing with files
+        - [ ] Function for getting current time
+        - [ ] Function for flushing output
+        - [ ] Function for outputting to stderr
