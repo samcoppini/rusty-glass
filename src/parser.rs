@@ -277,6 +277,7 @@ fn parse_function(iter: &mut Peekable<Chars>, class: &mut ClassDefinition, gen: 
     while skip_whitespace(iter) {
         match iter.next() {
             Some(',') => gen.add_pop(),
+            Some('^') => gen.add_return(),
             Some('?') => gen.add_call(),
             Some('.') => gen.add_load_from(),
             Some(c) if c.is_ascii_lowercase() => gen.add_push_member(c.to_string())?,

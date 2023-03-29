@@ -23,7 +23,7 @@ Glass Interpreter Feature List:
     - [ ] Other, single-character commands:
         - [x] Implement `,` command
         - [ ] Implement `*` command
-        - [ ] Implement `^` command
+        - [x] Implement `^` command
         - [ ] Implement `$` command
         - [ ] Implement `=` command
         - [x] Implement `?` command
