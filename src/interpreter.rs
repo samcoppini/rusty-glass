@@ -226,6 +226,17 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                 let str_index = read_short(&program.instructions, &mut opcode_index);
                 value_stack.push(GlassValue::String(str_index as StringIndex));
             },
+            OPCODE_RETURN => {
+                match func_stack.pop() {
+                    Some((call_inst, call_op)) => {
+                        cur_object = call_inst;
+                        opcode_index = call_op;
+                    },
+                    None => {
+                        return Ok(());
+                    },
+                }
+            },
             OPCODE_STORE => {
                 let value = match value_stack.pop() {
                     Some(val) => val,
@@ -241,17 +252,6 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                     },
                     Some(_) => return Err(RuntimeError::WrongType),
                     None => return Err(RuntimeError::EmptyStack),
-                }
-            },
-            OPCODE_RETURN => {
-                match func_stack.pop() {
-                    Some((call_inst, call_op)) => {
-                        cur_object = call_inst;
-                        opcode_index = call_op;
-                    },
-                    None => {
-                        return Ok(());
-                    },
                 }
             },
             _ => unreachable!(),
