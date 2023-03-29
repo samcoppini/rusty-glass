@@ -13,13 +13,17 @@ pub enum ParseError {
     DuplicateClassName,
     DuplicateFuncName,
     InvalidChar,
+    LoopTooLong,
     MissingClassName,
     MissingFuncName,
+    MissingLoopName,
     MissingMainClass,
     MissingMainFunc,
     UnendedClass,
     UnendedFunc,
+    UnendedLoop,
     UnendedString,
+    UnexpectedName,
     TooManyGlobals,
     TooManyMembers,
     TooManyStrings,
@@ -127,6 +131,33 @@ impl BytecodeGenerator {
         self.instructions.push(OpCode::Instantiate as u8);
     }
 
+    fn add_jump_if(&mut self, loop_start: usize) -> Result<(), ParseError> {
+        let jump_amount = self.instructions.len() - loop_start + 3;
+        if jump_amount > (u16::MAX as usize) {
+            return Err(ParseError::LoopTooLong);
+        }
+
+        let hi = (jump_amount >> 8) as u8;
+        let lo = (jump_amount & 0xFF) as u8;
+
+        self.instructions.push(OpCode::JumpIf as u8);
+        self.instructions.push(hi);
+        self.instructions.push(lo);
+
+        self.instructions[loop_start - 2] = hi;
+        self.instructions[loop_start - 1] = lo;
+
+        Ok(())
+    }
+
+    fn add_jump_if_not(&mut self) -> usize {
+        self.instructions.push(OpCode::JumpIfNot as u8);
+        self.instructions.push(0);
+        self.instructions.push(0);
+
+        self.instructions.len()
+    }
+
     fn add_load(&mut self) {
         self.instructions.push(OpCode::Load as u8);
     }
@@ -167,6 +198,19 @@ impl BytecodeGenerator {
         self.instructions.push((member_name & 0xFF) as u8);
 
         Ok(())
+    }
+
+    fn add_push_name(&mut self, name_str: String) -> Result<(), ParseError> {
+        if name_str.len() == 1 {
+            match name_str.chars().next().unwrap() {
+                'A' ..= 'Z' => self.add_push_global(name_str),
+                'a' ..= 'z' => self.add_push_member(name_str),
+                _ => Err(ParseError::UnexpectedName),
+            }
+        }
+        else {
+            Err(ParseError::UnexpectedName)
+        }
     }
 
     fn add_push_self(&mut self) {
@@ -278,6 +322,8 @@ fn parse_function(iter: &mut Peekable<Chars>, class: &mut ClassDefinition, gen: 
 
     gen.add_func(class, name)?;
 
+    let mut loop_stack = Vec::new();
+
     while skip_whitespace(iter) {
         match iter.next() {
             Some(',') => gen.add_pop(),
@@ -297,6 +343,26 @@ fn parse_function(iter: &mut Peekable<Chars>, class: &mut ClassDefinition, gen: 
                 gen.add_instantiate();
                 gen.add_store();
             },
+            Some('/') => {
+                let loop_name = match parse_name(iter) {
+                    Some(name) => name,
+                    None => return Err(ParseError::MissingLoopName),
+                };
+
+                gen.add_push_name(loop_name.clone())?;
+                gen.add_load();
+                loop_stack.push((loop_name, gen.add_jump_if_not()))
+            },
+            Some('\\') => {
+                match loop_stack.pop() {
+                    None => return Err(ParseError::InvalidChar),
+                    Some((loop_name, loop_start)) => {
+                        gen.add_push_name(loop_name)?;
+                        gen.add_load();
+                        gen.add_jump_if(loop_start)?;
+                    }
+                }
+            },
             Some('"') => {
                 let mut string = String::new();
                 loop {
@@ -311,6 +377,10 @@ fn parse_function(iter: &mut Peekable<Chars>, class: &mut ClassDefinition, gen: 
                 }
             },
             Some(']') => {
+                if !loop_stack.is_empty() {
+                    return Err(ParseError::UnendedLoop);
+                }
+
                 gen.add_return();
                 return Ok(());
             },

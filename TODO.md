@@ -19,7 +19,7 @@ Glass Interpreter Feature List:
     - [ ] Implement instantiation command
         - [x] Instantiate objects
         - [ ] Calls constructors
-    - [ ] Implement loops
+    - [x] Implement loops
     - [x] Other, single-character commands:
         - [x] Implement `,` command
         - [x] Implement `*` command

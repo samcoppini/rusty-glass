@@ -5,6 +5,8 @@ pub enum OpCode {
     // Opcodes implementing the basic language
     Call,
     Instantiate,
+    JumpIf,
+    JumpIfNot,
     Load,
     LoadFrom,
     Pop,

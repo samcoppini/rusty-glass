@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, string};
 
 use crate::bytecode::*;
 
@@ -10,6 +10,8 @@ type InstanceIndex = usize;
 
 const OPCODE_CALL: u8 = OpCode::Call as u8;
 const OPCODE_INSTANTIATE: u8 = OpCode::Instantiate as u8;
+const OPCODE_JUMP_IF: u8 = OpCode::JumpIf as u8;
+const OPCODE_JUMP_IF_NOT: u8 = OpCode::JumpIfNot as u8;
 const OPCODE_LOAD: u8 = OpCode::Load as u8;
 const OPCODE_LOAD_FROM: u8 = OpCode::LoadFrom as u8;
 const OPCODE_OUTPUT_STRING: u8 = OpCode::OutputString as u8;
@@ -107,6 +109,30 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                     },
                     Some(_) => return Err(RuntimeError::WrongType),
                     None => return Err(RuntimeError::EmptyStack),
+                }
+            },
+            OPCODE_JUMP_IF => {
+                let should_jump = match value_stack.pop() {
+                    Some(GlassValue::String(index)) => !strings[index].is_empty(),
+                    Some(_) => false,
+                    None => return Err(RuntimeError::EmptyStack),
+                };
+
+                let jump_amount = read_short(&program.instructions, &mut opcode_index);
+                if should_jump {
+                    opcode_index -= jump_amount as usize;
+                }
+            },
+            OPCODE_JUMP_IF_NOT => {
+                let should_jump = match value_stack.pop() {
+                    Some(GlassValue::String(index)) => strings[index].is_empty(),
+                    Some(_) => true,
+                    None => return Err(RuntimeError::EmptyStack),
+                };
+
+                let jump_amount = read_short(&program.instructions, &mut opcode_index);
+                if should_jump {
+                    opcode_index += jump_amount as usize;
                 }
             },
             OPCODE_LOAD => {
