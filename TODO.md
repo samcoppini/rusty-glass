@@ -20,12 +20,12 @@ Glass Interpreter Feature List:
         - [x] Instantiate objects
         - [ ] Calls constructors
     - [ ] Implement loops
-    - [ ] Other, single-character commands:
+    - [x] Other, single-character commands:
         - [x] Implement `,` command
-        - [ ] Implement `*` command
+        - [x] Implement `*` command
         - [x] Implement `^` command
         - [x] Implement `$` command
-        - [ ] Implement `=` command
+        - [x] Implement `=` command
         - [x] Implement `?` command
         - [x] Implement `.` command
     - [ ] Comments
