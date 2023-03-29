@@ -21,7 +21,7 @@ Glass Interpreter Feature List:
         - [ ] Calls constructors
     - [ ] Implement loops
     - [ ] Other, single-character commands:
-        - [ ] Implement `,` command
+        - [x] Implement `,` command
         - [ ] Implement `*` command
         - [ ] Implement `^` command
         - [ ] Implement `$` command

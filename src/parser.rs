@@ -139,6 +139,10 @@ impl BytecodeGenerator {
         self.instructions.push(OpCode::OutputString as u8);
     }
 
+    fn add_pop(&mut self) {
+        self.instructions.push(OpCode::Pop as u8);
+    }
+
     fn add_push_global(&mut self, name_str: String) -> Result<(), ParseError> {
         let global_name = match self.get_global_name(name_str) {
             Some(global_name) => global_name,
@@ -272,6 +276,7 @@ fn parse_function(iter: &mut Peekable<Chars>, class: &mut ClassDefinition, gen: 
 
     while skip_whitespace(iter) {
         match iter.next() {
+            Some(',') => gen.add_pop(),
             Some('?') => gen.add_call(),
             Some('.') => gen.add_load_from(),
             Some(c) if c.is_ascii_lowercase() => gen.add_push_member(c.to_string())?,

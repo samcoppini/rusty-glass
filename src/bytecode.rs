@@ -7,6 +7,7 @@ pub enum OpCode {
     Instantiate,
     Load,
     LoadFrom,
+    Pop,
     PushGlobal,
     PushMember,
     PushString,
