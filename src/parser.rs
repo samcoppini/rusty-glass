@@ -169,6 +169,10 @@ impl BytecodeGenerator {
         Ok(())
     }
 
+    fn add_push_self(&mut self) {
+        self.instructions.push(OpCode::PushSelf as u8);
+    }
+
     fn add_push_string(&mut self, string: String) -> Result<(), ParseError> {
         let string_index = match self.get_string_index(string) {
             Some(string_index) => string_index,
@@ -282,6 +286,10 @@ fn parse_function(iter: &mut Peekable<Chars>, class: &mut ClassDefinition, gen: 
             Some('.') => gen.add_load_from(),
             Some(c) if c.is_ascii_lowercase() => gen.add_push_member(c.to_string())?,
             Some(c) if c.is_ascii_uppercase() => gen.add_push_global(c.to_string())?,
+            Some('$') => {
+                gen.add_push_self();
+                gen.add_store();
+            },
             Some('!') => {
                 gen.add_load();
                 gen.add_instantiate();

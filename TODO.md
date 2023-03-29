@@ -24,7 +24,7 @@ Glass Interpreter Feature List:
         - [x] Implement `,` command
         - [ ] Implement `*` command
         - [x] Implement `^` command
-        - [ ] Implement `$` command
+        - [x] Implement `$` command
         - [ ] Implement `=` command
         - [x] Implement `?` command
         - [x] Implement `.` command

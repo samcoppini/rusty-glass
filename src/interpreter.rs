@@ -16,6 +16,7 @@ const OPCODE_OUTPUT_STRING: u8 = OpCode::OutputString as u8;
 const OPCODE_POP: u8 = OpCode::Pop as u8;
 const OPCODE_PUSH_MEMBER: u8 = OpCode::PushMember as u8;
 const OPCODE_PUSH_GLOBAL: u8 = OpCode::PushGlobal as u8;
+const OPCODE_PUSH_SELF: u8 = OpCode::PushSelf as u8;
 const OPCODE_PUSH_STRING: u8 = OpCode::PushString as u8;
 const OPCODE_RETURN: u8 = OpCode::Return as u8;
 const OPCODE_STORE: u8 = OpCode::Store as u8;
@@ -191,6 +192,9 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
             OPCODE_PUSH_MEMBER => {
                 let name = read_short(&program.instructions, &mut opcode_index);
                 value_stack.push(GlassValue::MemberName(name as MemberName));
+            },
+            OPCODE_PUSH_SELF => {
+                value_stack.push(GlassValue::Instance(cur_object));
             },
             OPCODE_PUSH_STRING => {
                 let str_index = read_short(&program.instructions, &mut opcode_index);

@@ -10,6 +10,7 @@ pub enum OpCode {
     Pop,
     PushGlobal,
     PushMember,
+    PushSelf,
     PushString,
     Return,
     Store,
