@@ -335,8 +335,14 @@ fn add_builtin_classes(gen: &mut BytecodeGenerator) {
     let _ = gen.add_func(&mut math, "a".to_owned());
     gen.add_opcode(OpCode::Add);
     gen.add_return();
+    let _ = gen.add_func(&mut math, "d".to_owned());
+    gen.add_opcode(OpCode::Divide);
+    gen.add_return();
     let _ = gen.add_func(&mut math, "e".to_owned());
     gen.add_opcode(OpCode::Equal);
+    gen.add_return();
+    let _ = gen.add_func(&mut math, "f".to_owned());
+    gen.add_opcode(OpCode::Floor);
     gen.add_return();
     let _ = gen.add_func(&mut math, "le".to_owned());
     gen.add_opcode(OpCode::LessEqual);
@@ -350,8 +356,14 @@ fn add_builtin_classes(gen: &mut BytecodeGenerator) {
     let _ = gen.add_func(&mut math, "gt".to_owned());
     gen.add_opcode(OpCode::GreaterThan);
     gen.add_return();
+    let _ = gen.add_func(&mut math, "mod".to_owned());
+    gen.add_opcode(OpCode::Modulo);
+    gen.add_return();
     let _ = gen.add_func(&mut math, "ne".to_owned());
     gen.add_opcode(OpCode::NotEqual);
+    gen.add_return();
+    let _ = gen.add_func(&mut math, "s".to_owned());
+    gen.add_opcode(OpCode::Subtract);
     gen.add_return();
 
     let _ = gen.add_func(&mut output, "o".to_owned());

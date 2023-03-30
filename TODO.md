@@ -30,18 +30,18 @@ Glass Interpreter Feature List:
         - [x] Implement `.` command
     - [ ] Comments
 - [ ] Standard library implementation
-    - [ ] `A` class
+    - [x] `A` class
         - [x] `a` function
-        - [ ] `d` function
+        - [x] `d` function
         - [x] `e` function
-        - [ ] `f` function
+        - [x] `f` function
         - [x] `ge` function
         - [x] `gt` function
         - [x] `le` function
         - [x] `lt` function
-        - [ ] `mod` function
+        - [x] `mod` function
         - [x] `ne` function
-        - [ ] `s` function
+        - [x] `s` function
     - [ ] `I` class
         - [ ] `c` function
         - [ ] `e` function

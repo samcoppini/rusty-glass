@@ -21,14 +21,18 @@ pub enum OpCode {
 
     // Opcodes implementing standard library functions
     Add,
+    Divide,
     Equal,
+    Floor,
     GreaterEqual,
     GreaterThan,
     LessEqual,
     LessThan,
+    Modulo,
     NotEqual,
     OutputNumber,
     OutputString,
+    Subtract,
 }
 
 pub type LocalName = u16;

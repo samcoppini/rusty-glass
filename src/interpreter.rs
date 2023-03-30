@@ -10,7 +10,9 @@ type InstanceIndex = usize;
 
 const OPCODE_ADD: u8 = OpCode::Add as u8;
 const OPCODE_CALL: u8 = OpCode::Call as u8;
+const OPCODE_DIVIDE: u8 = OpCode::Divide as u8;
 const OPCODE_EQUAL: u8 = OpCode::Equal as u8;
+const OPCODE_FLOOR: u8 = OpCode::Floor as u8;
 const OPCODE_GREATER: u8 = OpCode::GreaterThan as u8;
 const OPCODE_GREATER_EQUAL: u8 = OpCode::GreaterEqual as u8;
 const OPCODE_INSTANTIATE: u8 = OpCode::Instantiate as u8;
@@ -20,6 +22,7 @@ const OPCODE_LESS: u8 = OpCode::LessThan as u8;
 const OPCODE_LESS_EQUAL: u8 = OpCode::LessEqual as u8;
 const OPCODE_LOAD: u8 = OpCode::Load as u8;
 const OPCODE_LOAD_FROM: u8 = OpCode::LoadFrom as u8;
+const OPCODE_MODULO: u8 = OpCode::Modulo as u8;
 const OPCODE_NOT_EQUAL: u8 = OpCode::NotEqual as u8;
 const OPCODE_OUTPUT_NUMBER: u8 = OpCode::OutputNumber as u8;
 const OPCODE_OUTPUT_STRING: u8 = OpCode::OutputString as u8;
@@ -32,6 +35,7 @@ const OPCODE_PUSH_SELF: u8 = OpCode::PushSelf as u8;
 const OPCODE_PUSH_STRING: u8 = OpCode::PushString as u8;
 const OPCODE_RETURN: u8 = OpCode::Return as u8;
 const OPCODE_STORE: u8 = OpCode::Store as u8;
+const OPCODE_SUBTRACT: u8 = OpCode::Subtract as u8;
 
 #[derive(Clone, Copy)]
 enum GlassValue {
@@ -128,10 +132,19 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                     None => return Err(RuntimeError::EmptyStack),
                 }
             },
+            OPCODE_DIVIDE => {
+                let num1 = pop_number(&mut value_stack)?;
+                let num2 = pop_number(&mut value_stack)?;
+                value_stack.push(GlassValue::Number(num2 / num1));
+            },
             OPCODE_EQUAL => {
                 let num1 = pop_number(&mut value_stack)?;
                 let num2 = pop_number(&mut value_stack)?;
                 value_stack.push(GlassValue::Number(if num1 == num2 { 1.0 } else { 0.0 }));
+            },
+            OPCODE_FLOOR => {
+                let num = pop_number(&mut value_stack)?;
+                value_stack.push(GlassValue::Number(num.floor()));
             },
             OPCODE_GREATER => {
                 let num1 = pop_number(&mut value_stack)?;
@@ -263,6 +276,11 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                     },
                 }
             },
+            OPCODE_MODULO => {
+                let num1 = pop_number(&mut value_stack)?;
+                let num2 = pop_number(&mut value_stack)?;
+                value_stack.push(GlassValue::Number(num2 % num1));
+            },
             OPCODE_NOT_EQUAL => {
                 let num1 = pop_number(&mut value_stack)?;
                 let num2 = pop_number(&mut value_stack)?;
@@ -345,6 +363,11 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                     Some(_) => return Err(RuntimeError::WrongType),
                     None => return Err(RuntimeError::EmptyStack),
                 }
+            },
+            OPCODE_SUBTRACT => {
+                let num1 = pop_number(&mut value_stack)?;
+                let num2 = pop_number(&mut value_stack)?;
+                value_stack.push(GlassValue::Number(num2 - num1));
             },
             _ => unreachable!(),
         }
