@@ -162,6 +162,11 @@ impl BytecodeGenerator {
         self.instructions.push(OpCode::Call as u8);
     }
 
+    fn add_duplicate(&mut self, index: u8) {
+        self.instructions.push(OpCode::Duplicate as u8);
+        self.instructions.push(index);
+    }
+
     fn add_instantiate(&mut self) {
         self.instructions.push(OpCode::Instantiate as u8);
     }
@@ -455,6 +460,7 @@ fn parse_function(iter: &mut Peekable<Chars>, class: &mut ClassDefinition, gen: 
             Some('.') => gen.add_load_from(),
             Some(c) if c.is_ascii_lowercase() => gen.add_push_member(c.to_string())?,
             Some(c) if c.is_ascii_uppercase() => gen.add_push_global(c.to_string())?,
+            Some(c) if c.is_ascii_digit() => gen.add_duplicate((c as u8) - ('0' as u8)),
             Some('$') => {
                 gen.add_push_self();
                 gen.add_store();

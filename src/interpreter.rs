@@ -11,6 +11,7 @@ type InstanceIndex = usize;
 const OPCODE_ADD: u8 = OpCode::Add as u8;
 const OPCODE_CALL: u8 = OpCode::Call as u8;
 const OPCODE_DIVIDE: u8 = OpCode::Divide as u8;
+const OPCODE_DUPLICATE: u8 = OpCode::Duplicate as u8;
 const OPCODE_EQUAL: u8 = OpCode::Equal as u8;
 const OPCODE_FLOOR: u8 = OpCode::Floor as u8;
 const OPCODE_GREATER: u8 = OpCode::GreaterThan as u8;
@@ -136,6 +137,14 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                 let num1 = pop_number(&mut value_stack)?;
                 let num2 = pop_number(&mut value_stack)?;
                 value_stack.push(GlassValue::Number(num2 / num1));
+            },
+            OPCODE_DUPLICATE => {
+                let dup_index = program.instructions[opcode_index + 1];
+                if dup_index as usize >= value_stack.len() {
+                    return Err(RuntimeError::EmptyStack);
+                }
+                value_stack.push(value_stack[value_stack.len() - (dup_index as usize) - 1]);
+                opcode_index += 1;
             },
             OPCODE_EQUAL => {
                 let num1 = pop_number(&mut value_stack)?;

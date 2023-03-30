@@ -4,6 +4,7 @@ use std::collections::HashMap;
 pub enum OpCode {
     // Opcodes implementing the basic language
     Call,
+    Duplicate,
     Instantiate,
     JumpIf,
     JumpIfNot,
