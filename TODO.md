@@ -1,12 +1,12 @@
 Glass Interpreter Feature List:
 
 - [ ] Language implementation
-    - [ ] Implement name push commands
+    - [x] Implement name push commands
         - [x] Single character names
         - [x] Multi-character names
         - [x] Global names
         - [x] Member names
-        - [ ] Local names
+        - [x] Local names
     - [x] Implement number push commands
         - [x] Integers
         - [x] Floats

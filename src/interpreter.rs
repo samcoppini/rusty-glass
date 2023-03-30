@@ -17,6 +17,7 @@ const OPCODE_LOAD_FROM: u8 = OpCode::LoadFrom as u8;
 const OPCODE_OUTPUT_NUMBER: u8 = OpCode::OutputNumber as u8;
 const OPCODE_OUTPUT_STRING: u8 = OpCode::OutputString as u8;
 const OPCODE_POP: u8 = OpCode::Pop as u8;
+const OPCODE_PUSH_LOCAL: u8 = OpCode::PushLocal as u8;
 const OPCODE_PUSH_NUMBER: u8 = OpCode::PushNumber as u8;
 const OPCODE_PUSH_MEMBER: u8 = OpCode::PushMember as u8;
 const OPCODE_PUSH_GLOBAL: u8 = OpCode::PushGlobal as u8;
@@ -31,6 +32,7 @@ enum GlassValue {
     Function(InstanceIndex, OpcodeIndex),
     GlobalName(GlobalName),
     Instance(InstanceIndex),
+    LocalName(LocalName),
     MemberName(MemberName),
     Number(f64),
     String(StringIndex),
@@ -68,10 +70,11 @@ fn read_short(instructions: &Vec<u8>, index: &mut usize) -> u16 {
 pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
     let mut instances = Vec::<GlassInstance>::new();
     let mut strings = Vec::<String>::new();
-    let mut func_stack = Vec::<(InstanceIndex, OpcodeIndex)>::new();
+    let mut func_stack = Vec::new();
     let mut value_stack = Vec::<GlassValue>::new();
     let mut globals = HashMap::<GlobalName, GlassValue>::new();
     let mut cur_object = 0 as InstanceIndex;
+    let mut locals = HashMap::new();
 
     // Populate globals with class definitions
     for i in 0..program.classes.len() {
@@ -95,7 +98,8 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
             OPCODE_CALL => {
                 match value_stack.pop() {
                     Some(GlassValue::Function(call_inst, call_op)) => {
-                        func_stack.push((cur_object, opcode_index));
+                        func_stack.push((cur_object, opcode_index, locals));
+                        locals = HashMap::new();
                         cur_object = call_inst;
                         opcode_index = call_op as usize;
                         continue;
@@ -148,6 +152,12 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                             None => return Err(RuntimeError::UnsetName),
                         }
                     },
+                    Some(GlassValue::LocalName(local_index)) => {
+                        match locals.get(&local_index) {
+                            Some(val) => value_stack.push(*val),
+                            None => return Err(RuntimeError::UnsetName),
+                        }
+                    },
                     Some(GlassValue::MemberName(member_index)) => {
                         let instance = &instances[cur_object];
                         match instance.variables.get(&member_index) {
@@ -170,6 +180,12 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                 let loaded_value = match value_stack.pop() {
                     Some(GlassValue::GlobalName(global_index)) => {
                         match globals.get(&global_index) {
+                            Some(val) => val,
+                            None => return Err(RuntimeError::UnsetName),
+                        }
+                    },
+                    Some(GlassValue::LocalName(local_index)) => {
+                        match locals.get(&local_index) {
                             Some(val) => val,
                             None => return Err(RuntimeError::UnsetName),
                         }
@@ -229,6 +245,10 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                 let name = read_short(&program.instructions, &mut opcode_index);
                 value_stack.push(GlassValue::GlobalName(name as GlobalName));
             },
+            OPCODE_PUSH_LOCAL => {
+                let name = read_short(&program.instructions, &mut opcode_index);
+                value_stack.push(GlassValue::LocalName(name as LocalName));
+            },
             OPCODE_PUSH_MEMBER => {
                 let name = read_short(&program.instructions, &mut opcode_index);
                 value_stack.push(GlassValue::MemberName(name as MemberName));
@@ -246,9 +266,10 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
             },
             OPCODE_RETURN => {
                 match func_stack.pop() {
-                    Some((call_inst, call_op)) => {
+                    Some((call_inst, call_op, local_vars)) => {
                         cur_object = call_inst;
                         opcode_index = call_op;
+                        locals = local_vars;
                     },
                     None => {
                         return Ok(());
@@ -264,6 +285,9 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                 match value_stack.pop() {
                     Some(GlassValue::GlobalName(name)) => {
                         globals.insert(name, value);
+                    },
+                    Some(GlassValue::LocalName(name)) => {
+                        locals.insert(name, value);
                     },
                     Some(GlassValue::MemberName(name)) => {
                         instances[cur_object as usize].variables.insert(name, value);

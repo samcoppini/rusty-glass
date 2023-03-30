@@ -48,6 +48,8 @@ struct BytecodeGenerator {
 
     global_names: HashMap<String, GlobalName>,
 
+    local_names: HashMap<String, LocalName>,
+
     strings: HashMap<String, StringConstantIndex>,
 
     numbers: Vec<f64>,
@@ -60,6 +62,7 @@ impl BytecodeGenerator {
             classes: HashMap::new(),
             member_names: HashMap::new(),
             global_names: HashMap::new(),
+            local_names: HashMap::new(),
             strings: HashMap::new(),
             numbers: Vec::new(),
         }
@@ -104,6 +107,10 @@ impl BytecodeGenerator {
 
     fn get_member_name(&mut self, name_str: String) -> Option<MemberName> {
         Self::get_name(&mut self.member_names, name_str)
+    }
+
+    fn get_local_name(&mut self, name_str: String) -> Option<LocalName> {
+        Self::get_name(&mut self.local_names, name_str)
     }
 
     fn add_func(&mut self, class: &mut ClassDefinition, func_name_str: String) -> Result<(), ParseError> {
@@ -215,6 +222,19 @@ impl BytecodeGenerator {
         Ok(())
     }
 
+    fn add_push_local(&mut self, name_str: String) -> Result<(), ParseError> {
+        let local_name = match self.get_local_name(name_str) {
+            Some(local_name) => local_name,
+            None => return Err(ParseError::TooManyGlobals),
+        };
+
+        self.instructions.push(OpCode::PushLocal as u8);
+        self.instructions.push((local_name >> 8) as u8);
+        self.instructions.push((local_name & 0xFF) as u8);
+
+        Ok(())
+    }
+
     fn add_push_member(&mut self, name_str: String) -> Result<(), ParseError> {
         let member_name = match self.get_member_name(name_str) {
             Some(member_name) => member_name,
@@ -232,6 +252,7 @@ impl BytecodeGenerator {
         match name_str.chars().next().unwrap() {
             'A' ..= 'Z' => self.add_push_global(name_str),
             'a' ..= 'z' => self.add_push_member(name_str),
+            '_' => self.add_push_local(name_str),
             _ => Err(ParseError::UnexpectedName),
         }
     }
@@ -356,6 +377,24 @@ fn parse_name(iter: &mut Peekable<Chars>) -> Option<String> {
             match iter.next() {
                 Some(c) => Some(c.to_string()),
                 _ => unreachable!(),
+            }
+        },
+        Some('(') => {
+            iter.next();
+            let mut name = String::new();
+            loop {
+                match iter.next() {
+                    Some(')') => {
+                        if valid_name(&name) {
+                            return Some(name);
+                        }
+                        else {
+                            return None;
+                        }
+                    }
+                    Some(c) => name.push(c),
+                    None => return None,
+                }
             }
         },
         _ => None,

@@ -11,6 +11,7 @@ pub enum OpCode {
     LoadFrom,
     Pop,
     PushGlobal,
+    PushLocal,
     PushMember,
     PushNumber,
     PushSelf,
@@ -22,6 +23,8 @@ pub enum OpCode {
     OutputNumber,
     OutputString,
 }
+
+pub type LocalName = u16;
 
 pub type MemberName = u16;
 
