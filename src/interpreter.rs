@@ -10,11 +10,17 @@ type InstanceIndex = usize;
 
 const OPCODE_ADD: u8 = OpCode::Add as u8;
 const OPCODE_CALL: u8 = OpCode::Call as u8;
+const OPCODE_EQUAL: u8 = OpCode::Equal as u8;
+const OPCODE_GREATER: u8 = OpCode::GreaterThan as u8;
+const OPCODE_GREATER_EQUAL: u8 = OpCode::GreaterEqual as u8;
 const OPCODE_INSTANTIATE: u8 = OpCode::Instantiate as u8;
 const OPCODE_JUMP_IF: u8 = OpCode::JumpIf as u8;
 const OPCODE_JUMP_IF_NOT: u8 = OpCode::JumpIfNot as u8;
+const OPCODE_LESS: u8 = OpCode::LessThan as u8;
+const OPCODE_LESS_EQUAL: u8 = OpCode::LessEqual as u8;
 const OPCODE_LOAD: u8 = OpCode::Load as u8;
 const OPCODE_LOAD_FROM: u8 = OpCode::LoadFrom as u8;
+const OPCODE_NOT_EQUAL: u8 = OpCode::NotEqual as u8;
 const OPCODE_OUTPUT_NUMBER: u8 = OpCode::OutputNumber as u8;
 const OPCODE_OUTPUT_STRING: u8 = OpCode::OutputString as u8;
 const OPCODE_POP: u8 = OpCode::Pop as u8;
@@ -68,6 +74,14 @@ fn read_short(instructions: &Vec<u8>, index: &mut usize) -> u16 {
     (hi_byte << 8) | lo_byte
 }
 
+fn pop_number(value_stack: &mut Vec<GlassValue>) -> Result<f64, RuntimeError> {
+    match value_stack.pop() {
+        Some(GlassValue::Number(num)) => Ok(num),
+        Some(_) => return Err(RuntimeError::WrongType),
+        None => return Err(RuntimeError::EmptyStack),
+    }
+}
+
 pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
     let mut instances = Vec::new();
     let mut strings = Vec::new();
@@ -97,16 +111,8 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
     loop {
         match program.instructions[opcode_index] {
             OPCODE_ADD => {
-                let num1 = match value_stack.pop() {
-                    Some(GlassValue::Number(num)) => num,
-                    Some(_) => return Err(RuntimeError::WrongType),
-                    None => return Err(RuntimeError::EmptyStack),
-                };
-                let num2 = match value_stack.pop() {
-                    Some(GlassValue::Number(num)) => num,
-                    Some(_) => return Err(RuntimeError::WrongType),
-                    None => return Err(RuntimeError::EmptyStack),
-                };
+                let num1 = pop_number(&mut value_stack)?;
+                let num2 = pop_number(&mut value_stack)?;
                 value_stack.push(GlassValue::Number(num1 + num2));
             },
             OPCODE_CALL => {
@@ -121,6 +127,21 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                     Some(_) => return Err(RuntimeError::WrongType),
                     None => return Err(RuntimeError::EmptyStack),
                 }
+            },
+            OPCODE_EQUAL => {
+                let num1 = pop_number(&mut value_stack)?;
+                let num2 = pop_number(&mut value_stack)?;
+                value_stack.push(GlassValue::Number(if num1 == num2 { 1.0 } else { 0.0 }));
+            },
+            OPCODE_GREATER => {
+                let num1 = pop_number(&mut value_stack)?;
+                let num2 = pop_number(&mut value_stack)?;
+                value_stack.push(GlassValue::Number(if num1 < num2 { 1.0 } else { 0.0 }));
+            },
+            OPCODE_GREATER_EQUAL => {
+                let num1 = pop_number(&mut value_stack)?;
+                let num2 = pop_number(&mut value_stack)?;
+                value_stack.push(GlassValue::Number(if num1 <= num2 { 1.0 } else { 0.0 }));
             },
             OPCODE_INSTANTIATE => {
                 match value_stack.pop() {
@@ -157,6 +178,16 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                 if should_jump {
                     opcode_index += jump_amount as usize;
                 }
+            },
+            OPCODE_LESS => {
+                let num1 = pop_number(&mut value_stack)?;
+                let num2 = pop_number(&mut value_stack)?;
+                value_stack.push(GlassValue::Number(if num1 > num2 { 1.0 } else { 0.0 }));
+            },
+            OPCODE_LESS_EQUAL => {
+                let num1 = pop_number(&mut value_stack)?;
+                let num2 = pop_number(&mut value_stack)?;
+                value_stack.push(GlassValue::Number(if num1 >= num2 { 1.0 } else { 0.0 }));
             },
             OPCODE_LOAD => {
                 match value_stack.pop() {
@@ -231,6 +262,11 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                         }
                     },
                 }
+            },
+            OPCODE_NOT_EQUAL => {
+                let num1 = pop_number(&mut value_stack)?;
+                let num2 = pop_number(&mut value_stack)?;
+                value_stack.push(GlassValue::Number(if num1 != num2 { 1.0 } else { 0.0 }));
             },
             OPCODE_OUTPUT_NUMBER => {
                 match value_stack.pop() {

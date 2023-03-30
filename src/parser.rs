@@ -154,8 +154,8 @@ impl BytecodeGenerator {
         }
     }
 
-    fn add_add(&mut self) {
-        self.instructions.push(OpCode::Add as u8);
+    fn add_opcode(&mut self, opcode: OpCode) {
+        self.instructions.push(opcode as u8);
     }
 
     fn add_call(&mut self) {
@@ -199,14 +199,6 @@ impl BytecodeGenerator {
 
     fn add_load_from(&mut self) {
         self.instructions.push(OpCode::LoadFrom as u8);
-    }
-
-    fn add_output_number(&mut self) {
-        self.instructions.push(OpCode::OutputNumber as u8);
-    }
-
-    fn add_output_string(&mut self) {
-        self.instructions.push(OpCode::OutputString as u8);
     }
 
     fn add_pop(&mut self) {
@@ -341,14 +333,32 @@ fn add_builtin_classes(gen: &mut BytecodeGenerator) {
     let mut output = ClassDefinition { funcs: HashMap::new() };
 
     let _ = gen.add_func(&mut math, "a".to_owned());
-    gen.add_add();
+    gen.add_opcode(OpCode::Add);
+    gen.add_return();
+    let _ = gen.add_func(&mut math, "e".to_owned());
+    gen.add_opcode(OpCode::Equal);
+    gen.add_return();
+    let _ = gen.add_func(&mut math, "le".to_owned());
+    gen.add_opcode(OpCode::LessEqual);
+    gen.add_return();
+    let _ = gen.add_func(&mut math, "lt".to_owned());
+    gen.add_opcode(OpCode::LessThan);
+    gen.add_return();
+    let _ = gen.add_func(&mut math, "ge".to_owned());
+    gen.add_opcode(OpCode::GreaterEqual);
+    gen.add_return();
+    let _ = gen.add_func(&mut math, "gt".to_owned());
+    gen.add_opcode(OpCode::GreaterThan);
+    gen.add_return();
+    let _ = gen.add_func(&mut math, "ne".to_owned());
+    gen.add_opcode(OpCode::NotEqual);
     gen.add_return();
 
     let _ = gen.add_func(&mut output, "o".to_owned());
-    gen.add_output_string();
+    gen.add_opcode(OpCode::OutputString);
     gen.add_return();
     let _ = gen.add_func(&mut output, "on".to_owned());
-    gen.add_output_number();
+    gen.add_opcode(OpCode::OutputNumber);
     gen.add_return();
 
     let _ = gen.add_class(math, "A".to_owned());

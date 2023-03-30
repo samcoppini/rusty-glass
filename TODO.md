@@ -33,14 +33,14 @@ Glass Interpreter Feature List:
     - [ ] `A` class
         - [x] `a` function
         - [ ] `d` function
-        - [ ] `e` function
+        - [x] `e` function
         - [ ] `f` function
-        - [ ] `ge` function
-        - [ ] `gt` function
-        - [ ] `le` function
-        - [ ] `lt` function
+        - [x] `ge` function
+        - [x] `gt` function
+        - [x] `le` function
+        - [x] `lt` function
         - [ ] `mod` function
-        - [ ] `ne` function
+        - [x] `ne` function
         - [ ] `s` function
     - [ ] `I` class
         - [ ] `c` function

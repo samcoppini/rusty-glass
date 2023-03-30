@@ -21,6 +21,12 @@ pub enum OpCode {
 
     // Opcodes implementing standard library functions
     Add,
+    Equal,
+    GreaterEqual,
+    GreaterThan,
+    LessEqual,
+    LessThan,
+    NotEqual,
     OutputNumber,
     OutputString,
 }
