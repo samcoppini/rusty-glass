@@ -154,6 +154,10 @@ impl BytecodeGenerator {
         }
     }
 
+    fn add_add(&mut self) {
+        self.instructions.push(OpCode::Add as u8);
+    }
+
     fn add_call(&mut self) {
         self.instructions.push(OpCode::Call as u8);
     }
@@ -333,7 +337,12 @@ impl BytecodeGenerator {
 }
 
 fn add_builtin_classes(gen: &mut BytecodeGenerator) {
+    let mut math = ClassDefinition { funcs: HashMap::new() };
     let mut output = ClassDefinition { funcs: HashMap::new() };
+
+    let _ = gen.add_func(&mut math, "a".to_owned());
+    gen.add_add();
+    gen.add_return();
 
     let _ = gen.add_func(&mut output, "o".to_owned());
     gen.add_output_string();
@@ -342,6 +351,7 @@ fn add_builtin_classes(gen: &mut BytecodeGenerator) {
     gen.add_output_number();
     gen.add_return();
 
+    let _ = gen.add_class(math, "A".to_owned());
     let _ = gen.add_class(output, "O".to_owned());
 }
 

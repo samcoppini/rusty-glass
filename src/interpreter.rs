@@ -8,6 +8,7 @@ type StringIndex = usize;
 
 type InstanceIndex = usize;
 
+const OPCODE_ADD: u8 = OpCode::Add as u8;
 const OPCODE_CALL: u8 = OpCode::Call as u8;
 const OPCODE_INSTANTIATE: u8 = OpCode::Instantiate as u8;
 const OPCODE_JUMP_IF: u8 = OpCode::JumpIf as u8;
@@ -95,6 +96,19 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
 
     loop {
         match program.instructions[opcode_index] {
+            OPCODE_ADD => {
+                let num1 = match value_stack.pop() {
+                    Some(GlassValue::Number(num)) => num,
+                    Some(_) => return Err(RuntimeError::WrongType),
+                    None => return Err(RuntimeError::EmptyStack),
+                };
+                let num2 = match value_stack.pop() {
+                    Some(GlassValue::Number(num)) => num,
+                    Some(_) => return Err(RuntimeError::WrongType),
+                    None => return Err(RuntimeError::EmptyStack),
+                };
+                value_stack.push(GlassValue::Number(num1 + num2));
+            },
             OPCODE_CALL => {
                 match value_stack.pop() {
                     Some(GlassValue::Function(call_inst, call_op)) => {

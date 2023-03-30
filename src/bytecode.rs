@@ -20,6 +20,7 @@ pub enum OpCode {
     Store,
 
     // Opcodes implementing standard library functions
+    Add,
     OutputNumber,
     OutputString,
 }

@@ -31,7 +31,7 @@ Glass Interpreter Feature List:
     - [ ] Comments
 - [ ] Standard library implementation
     - [ ] `A` class
-        - [ ] `a` function
+        - [x] `a` function
         - [ ] `d` function
         - [ ] `e` function
         - [ ] `f` function
