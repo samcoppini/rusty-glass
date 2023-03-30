@@ -13,6 +13,7 @@ pub enum ParseError {
     DuplicateClassName,
     DuplicateFuncName,
     InvalidChar,
+    InvalidParentheses,
     LoopTooLong,
     MissingClassName,
     MissingFuncName,
@@ -22,6 +23,7 @@ pub enum ParseError {
     UnendedClass,
     UnendedFunc,
     UnendedLoop,
+    UnendedParentheses,
     UnendedString,
     UnexpectedName,
     TooManyGlobals,
@@ -201,15 +203,10 @@ impl BytecodeGenerator {
     }
 
     fn add_push_name(&mut self, name_str: String) -> Result<(), ParseError> {
-        if name_str.len() == 1 {
-            match name_str.chars().next().unwrap() {
-                'A' ..= 'Z' => self.add_push_global(name_str),
-                'a' ..= 'z' => self.add_push_member(name_str),
-                _ => Err(ParseError::UnexpectedName),
-            }
-        }
-        else {
-            Err(ParseError::UnexpectedName)
+        match name_str.chars().next().unwrap() {
+            'A' ..= 'Z' => self.add_push_global(name_str),
+            'a' ..= 'z' => self.add_push_member(name_str),
+            _ => Err(ParseError::UnexpectedName),
         }
     }
 
@@ -296,6 +293,16 @@ fn skip_whitespace(iter: &mut Peekable<Chars>) -> bool {
     false
 }
 
+fn valid_name(name: &String) -> bool {
+    for c in name.chars() {
+        if c != '_' && !c.is_ascii_alphanumeric() {
+            return false;
+        }
+    }
+
+    name.len() > 0
+}
+
 fn parse_name(iter: &mut Peekable<Chars>) -> Option<String> {
     if !skip_whitespace(iter) {
         return None;
@@ -360,6 +367,22 @@ fn parse_function(iter: &mut Peekable<Chars>, class: &mut ClassDefinition, gen: 
                         gen.add_push_name(loop_name)?;
                         gen.add_load();
                         gen.add_jump_if(loop_start)?;
+                    }
+                }
+            },
+            Some('(') => {
+                let mut name = String::new();
+                loop {
+                    match iter.next() {
+                        Some(')') => {
+                            if valid_name(&name) {
+                                gen.add_push_name(name)?;
+                                break;
+                            }
+                            return Err(ParseError::InvalidParentheses);
+                        }
+                        Some(c) => name.push(c),
+                        None => return Err(ParseError::UnendedParentheses),
                     }
                 }
             },
