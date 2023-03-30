@@ -69,11 +69,11 @@ fn read_short(instructions: &Vec<u8>, index: &mut usize) -> u16 {
 }
 
 pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
-    let mut instances = Vec::<GlassInstance>::new();
-    let mut strings = Vec::<String>::new();
+    let mut instances = Vec::new();
+    let mut strings = Vec::new();
     let mut func_stack = Vec::new();
-    let mut value_stack = Vec::<GlassValue>::new();
-    let mut globals = HashMap::<GlobalName, GlassValue>::new();
+    let mut value_stack = Vec::new();
+    let mut globals = HashMap::new();
     let mut cur_object = 0 as InstanceIndex;
     let mut locals = HashMap::new();
 
