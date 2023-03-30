@@ -7,9 +7,9 @@ Glass Interpreter Feature List:
         - [x] Global names
         - [x] Member names
         - [ ] Local names
-    - [ ] Implement number push commands
-        - [ ] Integers
-        - [ ] Floats
+    - [x] Implement number push commands
+        - [x] Integers
+        - [x] Floats
     - [ ] Implement string push commands
         - [x] Basic strings
         - [ ] Strings with escape sequences
@@ -46,9 +46,9 @@ Glass Interpreter Feature List:
         - [ ] `c` function
         - [ ] `e` function
         - [ ] `l` function
-    - [ ] `O` class
+    - [x] `O` class
         - [x] `o` function
-        - [ ] `on` function
+        - [x] `on` function
     - [ ] `S` class
         - [ ] `a` function
         - [ ] `d` function

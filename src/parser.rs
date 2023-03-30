@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::iter::Peekable;
 use std::str::Chars;
+use std::str::FromStr;
 
 use crate::bytecode::*;
 
@@ -13,6 +14,7 @@ pub enum ParseError {
     DuplicateClassName,
     DuplicateFuncName,
     InvalidChar,
+    InvalidNumber,
     InvalidParentheses,
     LoopTooLong,
     MissingClassName,
@@ -23,13 +25,17 @@ pub enum ParseError {
     UnendedClass,
     UnendedFunc,
     UnendedLoop,
+    UnendedNumber,
     UnendedParentheses,
     UnendedString,
     UnexpectedName,
     TooManyGlobals,
     TooManyMembers,
+    TooManyNumbers,
     TooManyStrings,
 }
+
+type NumberConstantIndex = u16;
 
 type StringConstantIndex = u16;
 
@@ -43,6 +49,8 @@ struct BytecodeGenerator {
     global_names: HashMap<String, GlobalName>,
 
     strings: HashMap<String, StringConstantIndex>,
+
+    numbers: Vec<f64>,
 }
 
 impl BytecodeGenerator {
@@ -53,6 +61,7 @@ impl BytecodeGenerator {
             member_names: HashMap::new(),
             global_names: HashMap::new(),
             strings: HashMap::new(),
+            numbers: Vec::new(),
         }
     }
 
@@ -69,6 +78,19 @@ impl BytecodeGenerator {
                     Some(name)
                 }
             }
+        }
+    }
+
+    // TODO: we shouldn't have multiple number indices for the same number, but this
+    // isn't immediately easy to do because floats don't play nice with maps
+    fn get_number_index(&mut self, num: f64) -> Option<NumberConstantIndex> {
+        if self.numbers.len() >= StringConstantIndex::MAX as usize {
+            None
+        }
+        else {
+            let index = self.numbers.len();
+            self.numbers.push(num);
+            Some(index as NumberConstantIndex)
         }
     }
 
@@ -168,6 +190,10 @@ impl BytecodeGenerator {
         self.instructions.push(OpCode::LoadFrom as u8);
     }
 
+    fn add_output_number(&mut self) {
+        self.instructions.push(OpCode::OutputNumber as u8);
+    }
+
     fn add_output_string(&mut self) {
         self.instructions.push(OpCode::OutputString as u8);
     }
@@ -208,6 +234,19 @@ impl BytecodeGenerator {
             'a' ..= 'z' => self.add_push_member(name_str),
             _ => Err(ParseError::UnexpectedName),
         }
+    }
+
+    fn add_push_number(&mut self, number: f64) -> Result<(), ParseError> {
+        let number_index = match self.get_number_index(number) {
+            Some(index) => index,
+            None => return Err(ParseError::TooManyNumbers),
+        };
+
+        self.instructions.push(OpCode::PushNumber as u8);
+        self.instructions.push((number_index >> 8) as u8);
+        self.instructions.push((number_index & 0xFF) as u8);
+
+        Ok(())
     }
 
     fn add_push_self(&mut self) {
@@ -264,6 +303,7 @@ impl BytecodeGenerator {
             class_names: class_names,
             classes: classes,
             strings: strings,
+            numbers: self.numbers,
             instructions: self.instructions,
             main_class: main_class_name,
             main_func: main_func_name,
@@ -276,6 +316,9 @@ fn add_builtin_classes(gen: &mut BytecodeGenerator) {
 
     let _ = gen.add_func(&mut output, "o".to_owned());
     gen.add_output_string();
+    gen.add_return();
+    let _ = gen.add_func(&mut output, "on".to_owned());
+    gen.add_output_number();
     gen.add_return();
 
     let _ = gen.add_class(output, "O".to_owned());
@@ -396,6 +439,24 @@ fn parse_function(iter: &mut Peekable<Chars>, class: &mut ClassDefinition, gen: 
                         }
                         Some(c) => string.push(c),
                         None => return Err(ParseError::UnendedString),
+                    }
+                }
+            },
+            Some('<') => {
+                let mut num_str = String::new();
+                loop {
+                    match iter.next() {
+                        Some('>') => {
+                            let number = match f64::from_str(&num_str) {
+                                Ok(num) => num,
+                                Err(_) => return Err(ParseError::InvalidNumber),
+                            };
+
+                            gen.add_push_number(number)?;
+                            break;
+                        },
+                        Some(c) => num_str.push(c),
+                        None => return Err(ParseError::UnendedNumber),
                     }
                 }
             },

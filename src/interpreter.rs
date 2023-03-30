@@ -14,8 +14,10 @@ const OPCODE_JUMP_IF: u8 = OpCode::JumpIf as u8;
 const OPCODE_JUMP_IF_NOT: u8 = OpCode::JumpIfNot as u8;
 const OPCODE_LOAD: u8 = OpCode::Load as u8;
 const OPCODE_LOAD_FROM: u8 = OpCode::LoadFrom as u8;
+const OPCODE_OUTPUT_NUMBER: u8 = OpCode::OutputNumber as u8;
 const OPCODE_OUTPUT_STRING: u8 = OpCode::OutputString as u8;
 const OPCODE_POP: u8 = OpCode::Pop as u8;
+const OPCODE_PUSH_NUMBER: u8 = OpCode::PushNumber as u8;
 const OPCODE_PUSH_MEMBER: u8 = OpCode::PushMember as u8;
 const OPCODE_PUSH_GLOBAL: u8 = OpCode::PushGlobal as u8;
 const OPCODE_PUSH_SELF: u8 = OpCode::PushSelf as u8;
@@ -30,6 +32,7 @@ enum GlassValue {
     GlobalName(GlobalName),
     Instance(InstanceIndex),
     MemberName(MemberName),
+    Number(f64),
     String(StringIndex),
 }
 
@@ -113,6 +116,7 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
             },
             OPCODE_JUMP_IF => {
                 let should_jump = match value_stack.pop() {
+                    Some(GlassValue::Number(num)) => num != 0.0,
                     Some(GlassValue::String(index)) => !strings[index].is_empty(),
                     Some(_) => false,
                     None => return Err(RuntimeError::EmptyStack),
@@ -125,6 +129,7 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
             },
             OPCODE_JUMP_IF_NOT => {
                 let should_jump = match value_stack.pop() {
+                    Some(GlassValue::Number(num)) => num == 0.0,
                     Some(GlassValue::String(index)) => strings[index].is_empty(),
                     Some(_) => true,
                     None => return Err(RuntimeError::EmptyStack),
@@ -197,6 +202,15 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                     },
                 }
             },
+            OPCODE_OUTPUT_NUMBER => {
+                match value_stack.pop() {
+                    Some(GlassValue::Number(num)) => {
+                        print!("{}", num);
+                    },
+                    Some(_) => return Err(RuntimeError::WrongType),
+                    None => return Err(RuntimeError::EmptyStack),
+                }
+            },
             OPCODE_OUTPUT_STRING => {
                 match value_stack.pop() {
                     Some(GlassValue::String(str_index)) => {
@@ -218,6 +232,10 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
             OPCODE_PUSH_MEMBER => {
                 let name = read_short(&program.instructions, &mut opcode_index);
                 value_stack.push(GlassValue::MemberName(name as MemberName));
+            },
+            OPCODE_PUSH_NUMBER => {
+                let num_index = read_short(&program.instructions, &mut opcode_index);
+                value_stack.push(GlassValue::Number(program.numbers[num_index as usize]));
             },
             OPCODE_PUSH_SELF => {
                 value_stack.push(GlassValue::Instance(cur_object));

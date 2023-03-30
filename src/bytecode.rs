@@ -12,12 +12,14 @@ pub enum OpCode {
     Pop,
     PushGlobal,
     PushMember,
+    PushNumber,
     PushSelf,
     PushString,
     Return,
     Store,
 
     // Opcodes implementing standard library functions
+    OutputNumber,
     OutputString,
 }
 
@@ -37,6 +39,8 @@ pub struct BytecodeProgram {
     pub classes: Vec<ClassDefinition>,
 
     pub strings: Vec<String>,
+
+    pub numbers: Vec<f64>,
 
     pub instructions: Vec<u8>,
 
