@@ -30,6 +30,7 @@ pub enum OpCode {
     LessEqual,
     LessThan,
     Modulo,
+    Multiply,
     NotEqual,
     OutputNumber,
     OutputString,

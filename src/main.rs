@@ -26,9 +26,15 @@ fn main() {
         Ok(program) => {
             match execute_program(&program) {
                 Ok(_) => (),
-                Err(err) => eprintln!("{:?}", err),
+                Err(err) => {
+                    eprintln!("{:?}", err);
+                    std::process::exit(1);
+                },
             }
         },
-        Err(err) => eprintln!("{:?}", err),
+        Err(err) => {
+            eprintln!("{:?}", err);
+            std::process::exit(1);
+        },
     }
 }

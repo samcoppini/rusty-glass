@@ -24,6 +24,7 @@ const OPCODE_LESS_EQUAL: u8 = OpCode::LessEqual as u8;
 const OPCODE_LOAD: u8 = OpCode::Load as u8;
 const OPCODE_LOAD_FROM: u8 = OpCode::LoadFrom as u8;
 const OPCODE_MODULO: u8 = OpCode::Modulo as u8;
+const OPCODE_MULTIPLY: u8 = OpCode::Multiply as u8;
 const OPCODE_NOT_EQUAL: u8 = OpCode::NotEqual as u8;
 const OPCODE_OUTPUT_NUMBER: u8 = OpCode::OutputNumber as u8;
 const OPCODE_OUTPUT_STRING: u8 = OpCode::OutputString as u8;
@@ -289,6 +290,11 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                 let num1 = pop_number(&mut value_stack)?;
                 let num2 = pop_number(&mut value_stack)?;
                 value_stack.push(GlassValue::Number(num2 % num1));
+            },
+            OPCODE_MULTIPLY => {
+                let num1 = pop_number(&mut value_stack)?;
+                let num2 = pop_number(&mut value_stack)?;
+                value_stack.push(GlassValue::Number(num1 * num2));
             },
             OPCODE_NOT_EQUAL => {
                 let num1 = pop_number(&mut value_stack)?;

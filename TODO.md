@@ -39,6 +39,7 @@ Glass Interpreter Feature List:
         - [x] `gt` function
         - [x] `le` function
         - [x] `lt` function
+        - [x] `m` function
         - [x] `mod` function
         - [x] `ne` function
         - [x] `s` function
