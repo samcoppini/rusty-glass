@@ -14,6 +14,14 @@ fn duplicate() -> Result<(), Box<dyn std::error::Error>> {
        .success()
        .stdout("210");
 
+    let file = glass_expression_file("<0><1><2><3><4><5><6><7><8><9><10><11><12>(10)(_o)(on).?")?;
+    let mut cmd = Command::cargo_bin("glass")?;
+
+    cmd.arg(file.path())
+       .assert()
+       .success()
+       .stdout("2");
+
     Ok(())
 }
 

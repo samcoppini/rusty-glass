@@ -13,9 +13,9 @@ Glass Interpreter Feature List:
     - [x] Implement string push commands
         - [x] Basic strings
         - [x] Strings with escape sequences
-    - [ ] Implement duplication commands
+    - [x] Implement duplication commands
         - [x] Single-character duplicate command
-        - [ ] Multi-character duplicate command
+        - [x] Multi-character duplicate command
     - [ ] Implement instantiation command
         - [x] Instantiate objects
         - [ ] Calls constructors

@@ -13,7 +13,9 @@ const MAIN_FUNC_NAME: &str = "m";
 pub enum ParseError {
     DuplicateClassName,
     DuplicateFuncName,
+    IndexTooBig,
     InvalidChar,
+    InvalidInteger,
     InvalidNumber,
     InvalidParentheses,
     LoopTooLong,
@@ -398,13 +400,43 @@ fn skip_whitespace(iter: &mut Peekable<Chars>) -> bool {
 }
 
 fn valid_name(name: &String) -> bool {
+    if name.len() == 0 {
+        return false;
+    }
+
+    let first_char = name.chars().nth(0).unwrap();
+    if first_char.is_ascii_digit() {
+        return false;
+    }
+
     for c in name.chars() {
         if c != '_' && !c.is_ascii_alphanumeric() {
             return false;
         }
     }
 
-    name.len() > 0
+    true
+}
+
+fn get_integer(int_str: &String) -> Result<u8, ParseError> {
+    if int_str.len() == 0 {
+        return Err(ParseError::InvalidNumber)
+    }
+
+    let mut integer: usize = 0;
+
+    for c in int_str.chars() {
+        if !c.is_ascii_digit() {
+            println!("{}", c);
+            return Err(ParseError::InvalidInteger);
+        }
+        integer = (integer * 10) + (c as usize - '0' as usize);
+        if integer > (u8::MAX as usize) {
+            return Err(ParseError::IndexTooBig);
+        }
+    }
+
+    Ok(integer as u8)
 }
 
 fn parse_name(iter: &mut Peekable<Chars>) -> Option<String> {
@@ -502,7 +534,10 @@ fn parse_function(iter: &mut Peekable<Chars>, class: &mut ClassDefinition, gen: 
                                 gen.add_push_name(name)?;
                                 break;
                             }
-                            return Err(ParseError::InvalidParentheses);
+                            else {
+                                gen.add_duplicate(get_integer(&name)?);
+                                break;
+                            }
                         }
                         Some(c) => name.push(c),
                         None => return Err(ParseError::UnendedParentheses),
