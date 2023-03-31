@@ -517,6 +517,13 @@ fn parse_function(iter: &mut Peekable<Chars>, class: &mut ClassDefinition, gen: 
                             gen.add_push_string(string)?;
                             break;
                         }
+                        Some('\\') => {
+                            match iter.next() {
+                                Some('n') => string.push('\n'),
+                                Some(c) => string.push(c),
+                                None => return Err(ParseError::UnendedString),
+                            }
+                        }
                         Some(c) => string.push(c),
                         None => return Err(ParseError::UnendedString),
                     }

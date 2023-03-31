@@ -6,13 +6,13 @@ use assert_cmd::Command;
 
 #[test]
 fn output_string_success() -> Result<(), Box<dyn std::error::Error>> {
-    let file = glass_expression_file("\"Hey\"(_o)o.?")?;
+    let file = glass_expression_file("\"Hey!\\n\\\"???\\\"\"(_o)o.?")?;
     let mut cmd = Command::cargo_bin("glass")?;
 
     cmd.arg(file.path())
        .assert()
        .success()
-       .stdout("Hey");
+       .stdout("Hey!\n\"???\"");
 
     Ok(())
 }

@@ -10,9 +10,9 @@ Glass Interpreter Feature List:
     - [x] Implement number push commands
         - [x] Integers
         - [x] Floats
-    - [ ] Implement string push commands
+    - [x] Implement string push commands
         - [x] Basic strings
-        - [ ] Strings with escape sequences
+        - [x] Strings with escape sequences
     - [ ] Implement duplication commands
         - [x] Single-character duplicate command
         - [ ] Multi-character duplicate command
