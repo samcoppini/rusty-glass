@@ -16,9 +16,9 @@ Glass Interpreter Feature List:
     - [x] Implement duplication commands
         - [x] Single-character duplicate command
         - [x] Multi-character duplicate command
-    - [ ] Implement instantiation command
+    - [x] Implement instantiation command
         - [x] Instantiate objects
-        - [ ] Calls constructors
+        - [x] Calls constructors
     - [x] Implement loops
     - [x] Other, single-character commands:
         - [x] Implement `,` command

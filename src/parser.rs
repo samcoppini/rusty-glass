@@ -8,6 +8,7 @@ use crate::bytecode::*;
 
 const MAIN_CLASS_NAME: &str = "M";
 const MAIN_FUNC_NAME: &str = "m";
+const CONSTRUCTOR_FUNC_NAME: &str = "c__";
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -116,6 +117,10 @@ impl BytecodeGenerator {
     }
 
     fn add_func(&mut self, class: &mut ClassDefinition, func_name_str: String) -> Result<(), ParseError> {
+        if func_name_str == CONSTRUCTOR_FUNC_NAME {
+            class.constructor = Some(self.instructions.len())
+        }
+
         let member_name = match self.get_member_name(func_name_str) {
             Some(member_name) => member_name,
             None => return Err(ParseError::TooManyMembers),
@@ -162,6 +167,10 @@ impl BytecodeGenerator {
 
     fn add_call(&mut self) {
         self.instructions.push(OpCode::Call as u8);
+    }
+
+    fn add_construct(&mut self) {
+        self.instructions.push(OpCode::Construct as u8);
     }
 
     fn add_duplicate(&mut self, index: u8) {
@@ -298,6 +307,10 @@ impl BytecodeGenerator {
         self.instructions.push(OpCode::Store as u8);
     }
 
+    fn add_store_keep(&mut self) {
+        self.instructions.push(OpCode::StoreKeep as u8);
+    }
+
     fn get_program(self) -> Result<BytecodeProgram, ParseError> {
         let mut class_names = Vec::new();
         let mut classes = Vec::new();
@@ -336,8 +349,8 @@ impl BytecodeGenerator {
 }
 
 fn add_builtin_classes(gen: &mut BytecodeGenerator) {
-    let mut math = ClassDefinition { funcs: HashMap::new() };
-    let mut output = ClassDefinition { funcs: HashMap::new() };
+    let mut math = ClassDefinition::new();
+    let mut output = ClassDefinition::new();
 
     let _ = gen.add_func(&mut math, "a".to_owned());
     gen.add_opcode(OpCode::Add);
@@ -503,7 +516,8 @@ fn parse_function(iter: &mut Peekable<Chars>, class: &mut ClassDefinition, gen: 
             Some('!') => {
                 gen.add_load();
                 gen.add_instantiate();
-                gen.add_store();
+                gen.add_store_keep();
+                gen.add_construct();
             },
             Some('/') => {
                 let loop_name = match parse_name(iter) {
@@ -606,7 +620,7 @@ fn parse_class(iter: &mut Peekable<Chars>, gen: &mut BytecodeGenerator) -> Resul
         None => return Err(ParseError::MissingClassName),
     };
 
-    let mut class = ClassDefinition { funcs: HashMap::new() };
+    let mut class = ClassDefinition::new();
 
     while skip_whitespace(iter) {
         match iter.peek() {

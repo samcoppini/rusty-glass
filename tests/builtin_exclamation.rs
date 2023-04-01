@@ -45,6 +45,19 @@ fn global_exclamation() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn exclamation_constructor() -> Result<(), Box<dyn std::error::Error>> {
+    let file = glass_file(&"{M[mX<1>=YZ!Yz.?]}{Z[(c__)oO!Yz.?X<2>=][zX*o(on).?]}".to_owned())?;
+    let mut cmd = Command::cargo_bin("glass")?;
+
+    cmd.arg(file.path())
+       .assert()
+       .success()
+       .stdout("12");
+
+    Ok(())
+}
+
+#[test]
 fn exclamation_wrong_types() -> Result<(), Box<dyn std::error::Error>> {
     let file = glass_expression_file("<1>A!")?;
     let mut cmd = Command::cargo_bin("glass")?;

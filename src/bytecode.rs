@@ -4,6 +4,7 @@ use std::collections::HashMap;
 pub enum OpCode {
     // Opcodes implementing the basic language
     Call,
+    Construct,
     Duplicate,
     Instantiate,
     JumpIf,
@@ -19,6 +20,7 @@ pub enum OpCode {
     PushString,
     Return,
     Store,
+    StoreKeep,
 
     // Opcodes implementing standard library functions
     Add,
@@ -47,6 +49,14 @@ pub type OpcodeIndex = usize;
 
 pub struct ClassDefinition {
     pub funcs: HashMap<MemberName, OpcodeIndex>,
+
+    pub constructor: Option<OpcodeIndex>,
+}
+
+impl ClassDefinition {
+    pub fn new() -> ClassDefinition {
+        ClassDefinition { funcs: HashMap::new(), constructor: None }
+    }
 }
 
 pub struct BytecodeProgram {

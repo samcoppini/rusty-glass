@@ -10,6 +10,7 @@ type InstanceIndex = usize;
 
 const OPCODE_ADD: u8 = OpCode::Add as u8;
 const OPCODE_CALL: u8 = OpCode::Call as u8;
+const OPCODE_CONSTRUCT: u8 = OpCode::Construct as u8;
 const OPCODE_DIVIDE: u8 = OpCode::Divide as u8;
 const OPCODE_DUPLICATE: u8 = OpCode::Duplicate as u8;
 const OPCODE_EQUAL: u8 = OpCode::Equal as u8;
@@ -37,6 +38,7 @@ const OPCODE_PUSH_SELF: u8 = OpCode::PushSelf as u8;
 const OPCODE_PUSH_STRING: u8 = OpCode::PushString as u8;
 const OPCODE_RETURN: u8 = OpCode::Return as u8;
 const OPCODE_STORE: u8 = OpCode::Store as u8;
+const OPCODE_STORE_KEEP: u8 = OpCode::StoreKeep as u8;
 const OPCODE_SUBTRACT: u8 = OpCode::Subtract as u8;
 
 #[derive(Clone, Copy)]
@@ -129,6 +131,24 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                         cur_object = call_inst;
                         opcode_index = call_op as usize;
                         continue;
+                    },
+                    Some(_) => return Err(RuntimeError::WrongType),
+                    None => return Err(RuntimeError::EmptyStack),
+                }
+            },
+            OPCODE_CONSTRUCT => {
+                match value_stack.pop() {
+                    Some(GlassValue::Instance(inst_index)) => {
+                        match instances[inst_index].class.constructor {
+                            None => (),
+                            Some(ctor_index) => {
+                                func_stack.push((cur_object, opcode_index, locals));
+                                locals = HashMap::new();
+                                cur_object = inst_index;
+                                opcode_index = ctor_index;
+                                continue;
+                            },
+                        }
                     },
                     Some(_) => return Err(RuntimeError::WrongType),
                     None => return Err(RuntimeError::EmptyStack),
@@ -378,6 +398,28 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                     Some(_) => return Err(RuntimeError::WrongType),
                     None => return Err(RuntimeError::EmptyStack),
                 }
+            },
+            OPCODE_STORE_KEEP => {
+                let value = match value_stack.pop() {
+                    Some(val) => val,
+                    None => return Err(RuntimeError::EmptyStack),
+                };
+
+                match value_stack.pop() {
+                    Some(GlassValue::GlobalName(name)) => {
+                        globals.insert(name, value);
+                    },
+                    Some(GlassValue::LocalName(name)) => {
+                        locals.insert(name, value);
+                    },
+                    Some(GlassValue::MemberName(name)) => {
+                        instances[cur_object as usize].variables.insert(name, value);
+                    },
+                    Some(_) => return Err(RuntimeError::WrongType),
+                    None => return Err(RuntimeError::EmptyStack),
+                }
+
+                value_stack.push(value);
             },
             OPCODE_SUBTRACT => {
                 let num1 = pop_number(&mut value_stack)?;
