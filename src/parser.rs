@@ -402,7 +402,18 @@ fn add_builtin_classes(gen: &mut BytecodeGenerator) {
 
 fn skip_whitespace(iter: &mut Peekable<Chars>) -> bool {
     while let Some(c) = iter.peek() {
-        if !c.is_whitespace() {
+        if *c == '\'' {
+            iter.next();
+            loop {
+                match iter.next() {
+                    Some('\'') => break,
+                    Some(_) => {},
+                    None => return false,
+                }
+            }
+            continue;
+        }
+        else if !c.is_whitespace() {
             return true;
         }
 

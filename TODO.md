@@ -1,6 +1,6 @@
 Glass Interpreter Feature List:
 
-- [ ] Language implementation
+- [x] Language implementation
     - [x] Implement name push commands
         - [x] Single character names
         - [x] Multi-character names
@@ -28,7 +28,7 @@ Glass Interpreter Feature List:
         - [x] Implement `=` command
         - [x] Implement `?` command
         - [x] Implement `.` command
-    - [ ] Comments
+    - [x] Comments
 - [ ] Standard library implementation
     - [x] `A` class
         - [x] `a` function

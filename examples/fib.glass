@@ -1,3 +1,5 @@
+'Fibonacci program in glass. Calculates and prints the first 20 fibonacci numbers'
+
 {F
     [f
         (_a)A!
