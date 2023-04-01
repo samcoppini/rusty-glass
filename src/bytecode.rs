@@ -24,6 +24,7 @@ pub enum OpCode {
 
     // Opcodes implementing standard library functions
     Add,
+    Concat,
     Divide,
     Equal,
     Floor,

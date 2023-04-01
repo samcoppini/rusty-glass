@@ -349,9 +349,8 @@ impl BytecodeGenerator {
 }
 
 fn add_builtin_classes(gen: &mut BytecodeGenerator) {
+    // Arithmetic class
     let mut math = ClassDefinition::new();
-    let mut output = ClassDefinition::new();
-
     let _ = gen.add_func(&mut math, "a".to_owned());
     gen.add_opcode(OpCode::Add);
     gen.add_return();
@@ -388,16 +387,24 @@ fn add_builtin_classes(gen: &mut BytecodeGenerator) {
     let _ = gen.add_func(&mut math, "s".to_owned());
     gen.add_opcode(OpCode::Subtract);
     gen.add_return();
+    let _ = gen.add_class(math, "A".to_owned());
 
+    // Output class
+    let mut output = ClassDefinition::new();
     let _ = gen.add_func(&mut output, "o".to_owned());
     gen.add_opcode(OpCode::OutputString);
     gen.add_return();
     let _ = gen.add_func(&mut output, "on".to_owned());
     gen.add_opcode(OpCode::OutputNumber);
     gen.add_return();
-
-    let _ = gen.add_class(math, "A".to_owned());
     let _ = gen.add_class(output, "O".to_owned());
+
+    // String class
+    let mut string = ClassDefinition::new();
+    let _ = gen.add_func(&mut string, "a".to_owned());
+    gen.add_opcode(OpCode::Concat);
+    gen.add_return();
+    let _ = gen.add_class(string, "S".to_owned());
 }
 
 fn skip_whitespace(iter: &mut Peekable<Chars>) -> bool {

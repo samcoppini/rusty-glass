@@ -10,6 +10,7 @@ type InstanceIndex = usize;
 
 const OPCODE_ADD: u8 = OpCode::Add as u8;
 const OPCODE_CALL: u8 = OpCode::Call as u8;
+const OPCODE_CONCAT: u8 = OpCode::Concat as u8;
 const OPCODE_CONSTRUCT: u8 = OpCode::Construct as u8;
 const OPCODE_DIVIDE: u8 = OpCode::Divide as u8;
 const OPCODE_DUPLICATE: u8 = OpCode::Duplicate as u8;
@@ -90,6 +91,14 @@ fn pop_number(value_stack: &mut Vec<GlassValue>) -> Result<f64, RuntimeError> {
     }
 }
 
+fn pop_string(value_stack: &mut Vec<GlassValue>) -> Result<StringIndex, RuntimeError> {
+    match value_stack.pop() {
+        Some(GlassValue::String(index)) => Ok(index),
+        Some(_) => return Err(RuntimeError::WrongType),
+        None => return Err(RuntimeError::EmptyStack),
+    }
+}
+
 pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
     let mut instances = Vec::new();
     let mut strings = Vec::new();
@@ -135,6 +144,12 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                     Some(_) => return Err(RuntimeError::WrongType),
                     None => return Err(RuntimeError::EmptyStack),
                 }
+            },
+            OPCODE_CONCAT => {
+                let str1 = &strings[pop_string(&mut value_stack)?];
+                let str2 = &strings[pop_string(&mut value_stack)?];
+                strings.push(str2.to_owned() + str1);
+                value_stack.push(GlassValue::String(strings.len() - 1));
             },
             OPCODE_CONSTRUCT => {
                 match value_stack.pop() {
