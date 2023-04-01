@@ -37,6 +37,7 @@ pub enum OpCode {
     NotEqual,
     OutputNumber,
     OutputString,
+    StringEqual,
     Subtract,
 }
 
