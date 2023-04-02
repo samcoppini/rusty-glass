@@ -21,6 +21,7 @@ const OPCODE_GREATER_EQUAL: u8 = OpCode::GreaterEqual as u8;
 const OPCODE_INSTANTIATE: u8 = OpCode::Instantiate as u8;
 const OPCODE_JUMP_IF: u8 = OpCode::JumpIf as u8;
 const OPCODE_JUMP_IF_NOT: u8 = OpCode::JumpIfNot as u8;
+const OPCODE_LENGTH: u8 = OpCode::Length as u8;
 const OPCODE_LESS: u8 = OpCode::LessThan as u8;
 const OPCODE_LESS_EQUAL: u8 = OpCode::LessEqual as u8;
 const OPCODE_LOAD: u8 = OpCode::Load as u8;
@@ -237,6 +238,10 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                 if should_jump {
                     opcode_index += jump_amount as usize;
                 }
+            },
+            OPCODE_LENGTH => {
+                let string = &strings[pop_string(&mut value_stack)?];
+                value_stack.push(GlassValue::Number(string.len() as f64));
             },
             OPCODE_LESS => {
                 let num1 = pop_number(&mut value_stack)?;

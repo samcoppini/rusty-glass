@@ -30,6 +30,7 @@ pub enum OpCode {
     Floor,
     GreaterEqual,
     GreaterThan,
+    Length,
     LessEqual,
     LessThan,
     Modulo,
