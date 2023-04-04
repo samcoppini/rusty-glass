@@ -4,6 +4,10 @@ use std::iter::Peekable;
 use std::str::Chars;
 use std::str::FromStr;
 
+use ascii::ToAsciiChar;
+use ascii::AsciiChar;
+use ascii::AsciiString;
+
 use crate::bytecode::*;
 
 const MAIN_CLASS_NAME: &str = "M";
@@ -19,6 +23,7 @@ pub enum ParseError {
     InvalidInteger,
     InvalidNumber,
     InvalidParentheses,
+    InvalidString,
     LoopTooLong,
     MissingClassName,
     MissingFuncName,
@@ -53,7 +58,7 @@ struct BytecodeGenerator {
 
     local_names: HashMap<String, LocalName>,
 
-    strings: HashMap<String, StringConstantIndex>,
+    strings: HashMap<AsciiString, StringConstantIndex>,
 
     numbers: Vec<f64>,
 }
@@ -80,7 +85,7 @@ impl BytecodeGenerator {
                 }
                 else {
                     let name = name_map.len() as u16;
-                    name_map.insert(name_str.clone(), name);
+                    name_map.insert(name_str, name);
                     Some(name)
                 }
             }
@@ -100,8 +105,20 @@ impl BytecodeGenerator {
         }
     }
 
-    fn get_string_index(&mut self, string: String) -> Option<StringConstantIndex> {
-        Self::get_name(&mut self.strings, string)
+    fn get_string_index(&mut self, string: AsciiString) -> Option<StringConstantIndex> {
+        match self.strings.get(&string) {
+            Some(index) => Some(*index),
+            None => {
+                if self.strings.len() >= u16::MAX as usize {
+                    None
+                }
+                else {
+                    let index = self.strings.len() as u16;
+                    self.strings.insert(string, index);
+                    Some(index)
+                }
+            }
+        }
     }
 
     fn get_global_name(&mut self, name_str: String) -> Option<GlobalName> {
@@ -286,7 +303,7 @@ impl BytecodeGenerator {
         self.instructions.push(OpCode::PushSelf as u8);
     }
 
-    fn add_push_string(&mut self, string: String) -> Result<(), ParseError> {
+    fn add_push_string(&mut self, string: AsciiString) -> Result<(), ParseError> {
         let string_index = match self.get_string_index(string) {
             Some(string_index) => string_index,
             None => return Err(ParseError::TooManyMembers),
@@ -320,9 +337,9 @@ impl BytecodeGenerator {
             classes.push(class);
         }
 
-        let mut strings = std::vec::from_elem("".to_owned(), self.strings.len());
+        let mut strings = std::vec::from_elem(AsciiString::new(), self.strings.len());
         for (string, index) in self.strings {
-            strings[index as usize] = string.to_owned();
+            strings[index as usize] = string;
         }
 
         let main_class_name = match self.global_names.get(MAIN_CLASS_NAME) {
@@ -583,7 +600,7 @@ fn parse_function(iter: &mut Peekable<Chars>, class: &mut ClassDefinition, gen: 
                 }
             },
             Some('"') => {
-                let mut string = String::new();
+                let mut string = AsciiString::new();
                 loop {
                     match iter.next() {
                         Some('"') => {
@@ -592,12 +609,18 @@ fn parse_function(iter: &mut Peekable<Chars>, class: &mut ClassDefinition, gen: 
                         }
                         Some('\\') => {
                             match iter.next() {
-                                Some('n') => string.push('\n'),
-                                Some(c) => string.push(c),
+                                Some('n') => string.push(AsciiChar::LineFeed),
+                                Some(c) => match c.to_ascii_char() {
+                                    Ok(ch) => string.push(ch),
+                                    Err(_) => return Err(ParseError::InvalidString),
+                                },
                                 None => return Err(ParseError::UnendedString),
                             }
                         }
-                        Some(c) => string.push(c),
+                        Some(c) => match c.to_ascii_char() {
+                            Ok(ch) => string.push(ch),
+                            Err(_) => return Err(ParseError::InvalidString),
+                        },
                         None => return Err(ParseError::UnendedString),
                     }
                 }

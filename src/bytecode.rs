@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use ascii::AsciiString;
+
 #[repr(u8)]
 pub enum OpCode {
     // Opcodes implementing the basic language
@@ -67,7 +69,7 @@ pub struct BytecodeProgram {
 
     pub classes: Vec<ClassDefinition>,
 
-    pub strings: Vec<String>,
+    pub strings: Vec<AsciiString>,
 
     pub numbers: Vec<f64>,
 
