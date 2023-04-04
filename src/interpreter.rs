@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use ascii::AsciiString;
+
 use crate::bytecode::*;
 
 type ClassIndex = usize;
@@ -18,6 +20,7 @@ const OPCODE_EQUAL: u8 = OpCode::Equal as u8;
 const OPCODE_FLOOR: u8 = OpCode::Floor as u8;
 const OPCODE_GREATER: u8 = OpCode::GreaterThan as u8;
 const OPCODE_GREATER_EQUAL: u8 = OpCode::GreaterEqual as u8;
+const OPCODE_INDEX: u8 = OpCode::Index as u8;
 const OPCODE_INSTANTIATE: u8 = OpCode::Instantiate as u8;
 const OPCODE_JUMP_IF: u8 = OpCode::JumpIf as u8;
 const OPCODE_JUMP_IF_NOT: u8 = OpCode::JumpIfNot as u8;
@@ -65,6 +68,7 @@ struct GlassInstance<'a> {
 #[derive(Debug)]
 pub enum RuntimeError {
     EmptyStack,
+    InvalidIndex,
     UnsetName,
     WrongType,
 }
@@ -98,6 +102,21 @@ fn pop_string(value_stack: &mut Vec<GlassValue>) -> Result<StringIndex, RuntimeE
         Some(GlassValue::String(index)) => Ok(index),
         Some(_) => return Err(RuntimeError::WrongType),
         None => return Err(RuntimeError::EmptyStack),
+    }
+}
+
+fn get_index(string: &AsciiString, num: f64) -> Result<usize, RuntimeError> {
+    if num != num.floor() || num < 0.0 {
+        Err(RuntimeError::InvalidIndex)
+    }
+    else {
+        let index = num as usize;
+        if index >= string.len() {
+            Err(RuntimeError::InvalidIndex)
+        }
+        else {
+            Ok(index)
+        }
     }
 }
 
@@ -202,6 +221,13 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                 let num1 = pop_number(&mut value_stack)?;
                 let num2 = pop_number(&mut value_stack)?;
                 value_stack.push(GlassValue::Number(if num1 <= num2 { 1.0 } else { 0.0 }));
+            },
+            OPCODE_INDEX => {
+                let num = pop_number(&mut value_stack)?;
+                let string = &strings[pop_string(&mut value_stack)?];
+                let index = get_index(&string, num)?;
+                strings.push(AsciiString::from(string[index]));
+                value_stack.push(GlassValue::String(strings.len() - 1));
             },
             OPCODE_INSTANTIATE => {
                 match value_stack.pop() {
