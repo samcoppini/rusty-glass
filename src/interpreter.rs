@@ -45,6 +45,7 @@ const OPCODE_RETURN: u8 = OpCode::Return as u8;
 const OPCODE_STORE: u8 = OpCode::Store as u8;
 const OPCODE_STORE_KEEP: u8 = OpCode::StoreKeep as u8;
 const OPCODE_STRING_EQUAL: u8 = OpCode::StringEqual as u8;
+const OPCODE_STRING_TO_NUM: u8 = OpCode::StringToNum as u8;
 const OPCODE_SUBTRACT: u8 = OpCode::Subtract as u8;
 
 #[derive(Clone, Copy)]
@@ -472,6 +473,13 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                 let str1 = &strings[pop_string(&mut value_stack)?];
                 let str2 = &strings[pop_string(&mut value_stack)?];
                 value_stack.push(GlassValue::Number(if str1 == str2 { 1.0 } else { 0.0 }));
+            },
+            OPCODE_STRING_TO_NUM => {
+                let string = &strings[pop_string(&mut value_stack)?];
+                if string.len() != 1 {
+                    return Err(RuntimeError::WrongType);
+                }
+                value_stack.push(GlassValue::Number(string[0].as_byte() as f64));
             },
             OPCODE_SUBTRACT => {
                 let num1 = pop_number(&mut value_stack)?;

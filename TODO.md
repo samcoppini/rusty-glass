@@ -58,7 +58,7 @@ Glass Interpreter Feature List:
         - [x] `l` function
         - [ ] `ns` function
         - [ ] `si` function
-        - [ ] `sn` function
+        - [x] `sn` function
     - [ ] `V` class
         - [ ] `d` function
         - [ ] `n` function

@@ -430,6 +430,9 @@ fn add_builtin_classes(gen: &mut BytecodeGenerator) {
     let _ = gen.add_func(&mut string, "l".to_owned());
     gen.add_opcode(OpCode::Length);
     gen.add_return();
+    let _ = gen.add_func(&mut string, "sn".to_owned());
+    gen.add_opcode(OpCode::StringToNum);
+    gen.add_return();
     let _ = gen.add_class(string, "S".to_owned());
 }
 
