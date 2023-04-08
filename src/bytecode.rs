@@ -39,6 +39,7 @@ pub enum OpCode {
     Modulo,
     Multiply,
     NotEqual,
+    NumToString,
     OutputNumber,
     OutputString,
     StringEqual,

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use ascii::AsciiString;
+use ascii::{AsciiString, ToAsciiChar};
 
 use crate::bytecode::*;
 
@@ -32,6 +32,7 @@ const OPCODE_LOAD_FROM: u8 = OpCode::LoadFrom as u8;
 const OPCODE_MODULO: u8 = OpCode::Modulo as u8;
 const OPCODE_MULTIPLY: u8 = OpCode::Multiply as u8;
 const OPCODE_NOT_EQUAL: u8 = OpCode::NotEqual as u8;
+const OPCODE_NUM_TO_STRING: u8 = OpCode::NumToString as u8;
 const OPCODE_OUTPUT_NUMBER: u8 = OpCode::OutputNumber as u8;
 const OPCODE_OUTPUT_STRING: u8 = OpCode::OutputString as u8;
 const OPCODE_POP: u8 = OpCode::Pop as u8;
@@ -368,6 +369,16 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                 let num1 = pop_number(&mut value_stack)?;
                 let num2 = pop_number(&mut value_stack)?;
                 value_stack.push(GlassValue::Number(if num1 != num2 { 1.0 } else { 0.0 }));
+            },
+            OPCODE_NUM_TO_STRING => {
+                let num = pop_number(&mut value_stack)?;
+                if num.floor() != num || num < 0.0 || num > 127.0 {
+                    return Err(RuntimeError::WrongType);
+                }
+                let mut string = AsciiString::new();
+                string.push((num as u8).to_ascii_char().expect("Ascii char error"));
+                strings.push(string);
+                value_stack.push(GlassValue::String(strings.len() - 1));
             },
             OPCODE_OUTPUT_NUMBER => {
                 match value_stack.pop() {
