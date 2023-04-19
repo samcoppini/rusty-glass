@@ -34,6 +34,7 @@ pub enum OpCode {
     GreaterThan,
     Index,
     InputChar,
+    InputEof,
     Length,
     LessEqual,
     LessThan,
