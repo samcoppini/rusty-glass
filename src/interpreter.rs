@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::io::Write;
+use std::io::{Read, Write};
 
 use byte_string::ByteString;
 
@@ -22,6 +22,7 @@ const OPCODE_FLOOR: u8 = OpCode::Floor as u8;
 const OPCODE_GREATER: u8 = OpCode::GreaterThan as u8;
 const OPCODE_GREATER_EQUAL: u8 = OpCode::GreaterEqual as u8;
 const OPCODE_INDEX: u8 = OpCode::Index as u8;
+const OPCODE_INPUT_CHAR: u8 = OpCode::InputChar as u8;
 const OPCODE_INSTANTIATE: u8 = OpCode::Instantiate as u8;
 const OPCODE_JUMP_IF: u8 = OpCode::JumpIf as u8;
 const OPCODE_JUMP_IF_NOT: u8 = OpCode::JumpIfNot as u8;
@@ -72,7 +73,7 @@ struct GlassInstance<'a> {
 pub enum RuntimeError {
     EmptyStack,
     InvalidIndex,
-    OutputError,
+    IOError,
     UnsetName,
     WrongType,
 }
@@ -233,6 +234,16 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                 let index = get_index(&string, num)?;
                 strings.push(ByteString(vec![string[index]]));
                 value_stack.push(GlassValue::String(strings.len() - 1));
+            },
+            OPCODE_INPUT_CHAR => {
+                let mut input_bytes: [u8; 1] = [ 0 ];
+                match std::io::stdin().read(&mut input_bytes) {
+                    Ok(_) => {
+                        strings.push(ByteString::new(Vec::from(input_bytes)));
+                        value_stack.push(GlassValue::String(strings.len() - 1));
+                    },
+                    Err(_) => return Err(RuntimeError::IOError),
+                }
             },
             OPCODE_INSTANTIATE => {
                 match value_stack.pop() {
@@ -395,7 +406,7 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                 match value_stack.pop() {
                     Some(GlassValue::String(str_index)) => {
                         if let Err(_) = std::io::stdout().write_all(&strings[str_index]) {
-                            return Err(RuntimeError::OutputError);
+                            return Err(RuntimeError::IOError);
                         }
                     },
                     Some(_) => return Err(RuntimeError::WrongType),

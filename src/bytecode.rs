@@ -33,6 +33,7 @@ pub enum OpCode {
     GreaterEqual,
     GreaterThan,
     Index,
+    InputChar,
     Length,
     LessEqual,
     LessThan,
