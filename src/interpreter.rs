@@ -1,6 +1,7 @@
 use std::collections::HashMap;
+use std::io::Write;
 
-use ascii::{AsciiString, ToAsciiChar};
+use byte_string::ByteString;
 
 use crate::bytecode::*;
 
@@ -71,6 +72,7 @@ struct GlassInstance<'a> {
 pub enum RuntimeError {
     EmptyStack,
     InvalidIndex,
+    OutputError,
     UnsetName,
     WrongType,
 }
@@ -107,7 +109,7 @@ fn pop_string(value_stack: &mut Vec<GlassValue>) -> Result<StringIndex, RuntimeE
     }
 }
 
-fn get_index(string: &AsciiString, num: f64) -> Result<usize, RuntimeError> {
+fn get_index(string: &ByteString, num: f64) -> Result<usize, RuntimeError> {
     if num != num.floor() || num < 0.0 {
         Err(RuntimeError::InvalidIndex)
     }
@@ -169,9 +171,10 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                 }
             },
             OPCODE_CONCAT => {
-                let str1 = &strings[pop_string(&mut value_stack)?];
-                let str2 = &strings[pop_string(&mut value_stack)?];
-                strings.push(str2.to_owned() + str1);
+                let mut str1 = strings[pop_string(&mut value_stack)?].clone();
+                let mut str2 = strings[pop_string(&mut value_stack)?].clone();
+                str2.append(&mut str1);
+                strings.push(str2);
                 value_stack.push(GlassValue::String(strings.len() - 1));
             },
             OPCODE_CONSTRUCT => {
@@ -228,7 +231,7 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                 let num = pop_number(&mut value_stack)?;
                 let string = &strings[pop_string(&mut value_stack)?];
                 let index = get_index(&string, num)?;
-                strings.push(AsciiString::from(string[index]));
+                strings.push(ByteString(vec![string[index]]));
                 value_stack.push(GlassValue::String(strings.len() - 1));
             },
             OPCODE_INSTANTIATE => {
@@ -372,11 +375,10 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
             },
             OPCODE_NUM_TO_STRING => {
                 let num = pop_number(&mut value_stack)?;
-                if num.floor() != num || num < 0.0 || num > 127.0 {
+                if num.floor() != num || num < 0.0 || num > 255.0 {
                     return Err(RuntimeError::WrongType);
                 }
-                let mut string = AsciiString::new();
-                string.push((num as u8).to_ascii_char().expect("Ascii char error"));
+                let string = ByteString(vec![num as u8]);
                 strings.push(string);
                 value_stack.push(GlassValue::String(strings.len() - 1));
             },
@@ -392,7 +394,9 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
             OPCODE_OUTPUT_STRING => {
                 match value_stack.pop() {
                     Some(GlassValue::String(str_index)) => {
-                        print!("{}", strings[str_index]);
+                        if let Err(_) = std::io::stdout().write_all(&strings[str_index]) {
+                            return Err(RuntimeError::OutputError);
+                        }
                     },
                     Some(_) => return Err(RuntimeError::WrongType),
                     None => return Err(RuntimeError::EmptyStack),
@@ -490,7 +494,7 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                 if string.len() != 1 {
                     return Err(RuntimeError::WrongType);
                 }
-                value_stack.push(GlassValue::Number(string[0].as_byte() as f64));
+                value_stack.push(GlassValue::Number(string[0] as f64));
             },
             OPCODE_SUBTRACT => {
                 let num1 = pop_number(&mut value_stack)?;

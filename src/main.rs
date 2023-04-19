@@ -19,8 +19,8 @@ fn main() {
         },
     };
 
-    let mut file_content = String::new();
-    file.read_to_string(&mut file_content).expect("Error reading file!");
+    let mut file_content = Vec::new();
+    file.read_to_end(&mut file_content).expect("Error reading file!");
 
     match parse_program(&file_content) {
         Ok(program) => {

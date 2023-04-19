@@ -1,18 +1,16 @@
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use std::iter::Peekable;
-use std::str::Chars;
+use std::slice::Iter;
 use std::str::FromStr;
 
-use ascii::ToAsciiChar;
-use ascii::AsciiChar;
-use ascii::AsciiString;
+use byte_string::ByteString;
 
 use crate::bytecode::*;
 
-const MAIN_CLASS_NAME: &str = "M";
-const MAIN_FUNC_NAME: &str = "m";
-const CONSTRUCTOR_FUNC_NAME: &str = "c__";
+const MAIN_CLASS_NAME: &[u8] = b"M";
+const MAIN_FUNC_NAME: &[u8] = b"m";
+const CONSTRUCTOR_FUNC_NAME: &[u8] = b"c__";
 
 #[derive(Debug)]
 pub enum ParseError {
@@ -52,13 +50,13 @@ struct BytecodeGenerator {
 
     classes: HashMap<GlobalName, ClassDefinition>,
 
-    member_names: HashMap<String, MemberName>,
+    member_names: HashMap<ByteString, MemberName>,
 
-    global_names: HashMap<String, GlobalName>,
+    global_names: HashMap<ByteString, GlobalName>,
 
-    local_names: HashMap<String, LocalName>,
+    local_names: HashMap<ByteString, LocalName>,
 
-    strings: HashMap<AsciiString, StringConstantIndex>,
+    strings: HashMap<ByteString, StringConstantIndex>,
 
     numbers: Vec<f64>,
 }
@@ -76,7 +74,7 @@ impl BytecodeGenerator {
         }
     }
 
-    fn get_name(name_map: &mut HashMap<String, u16>, name_str: String) -> Option<u16> {
+    fn get_name(name_map: &mut HashMap<ByteString, u16>, name_str: ByteString) -> Option<u16> {
         match name_map.get(&name_str) {
             Some(name) => Some(*name),
             None => {
@@ -105,7 +103,7 @@ impl BytecodeGenerator {
         }
     }
 
-    fn get_string_index(&mut self, string: AsciiString) -> Option<StringConstantIndex> {
+    fn get_string_index(&mut self, string: ByteString) -> Option<StringConstantIndex> {
         match self.strings.get(&string) {
             Some(index) => Some(*index),
             None => {
@@ -121,20 +119,21 @@ impl BytecodeGenerator {
         }
     }
 
-    fn get_global_name(&mut self, name_str: String) -> Option<GlobalName> {
+    fn get_global_name(&mut self, name_str: ByteString) -> Option<GlobalName> {
         Self::get_name(&mut self.global_names, name_str)
     }
 
-    fn get_member_name(&mut self, name_str: String) -> Option<MemberName> {
+    fn get_member_name(&mut self, name_str: ByteString) -> Option<MemberName> {
         Self::get_name(&mut self.member_names, name_str)
     }
 
-    fn get_local_name(&mut self, name_str: String) -> Option<LocalName> {
+    fn get_local_name(&mut self, name_str: ByteString) -> Option<LocalName> {
         Self::get_name(&mut self.local_names, name_str)
     }
 
-    fn add_func(&mut self, class: &mut ClassDefinition, func_name_str: String) -> Result<(), ParseError> {
-        if func_name_str == CONSTRUCTOR_FUNC_NAME {
+    fn add_func(&mut self, class: &mut ClassDefinition, func_name_str: ByteString) -> Result<(), ParseError> {
+        let ByteString(name_bytes) = &func_name_str;
+        if name_bytes == CONSTRUCTOR_FUNC_NAME {
             class.constructor = Some(self.instructions.len())
         }
 
@@ -152,7 +151,7 @@ impl BytecodeGenerator {
         }
     }
 
-    fn add_class(&mut self, class: ClassDefinition, class_name_str: String) -> Result<(), ParseError> {
+    fn add_class(&mut self, class: ClassDefinition, class_name_str: ByteString) -> Result<(), ParseError> {
         let class_name = match self.get_global_name(class_name_str.clone()) {
             Some(class_name) => class_name,
             None => return Err(ParseError::TooManyGlobals),
@@ -160,7 +159,8 @@ impl BytecodeGenerator {
 
         match self.classes.entry(class_name) {
             Entry::Vacant(entry) => {
-                if class_name_str == MAIN_CLASS_NAME {
+                let ByteString(name_bytes) = &class_name_str;
+                if name_bytes == MAIN_CLASS_NAME {
                     match self.member_names.get(MAIN_FUNC_NAME) {
                         Some(main_func_name) => {
                             if !class.funcs.contains_key(main_func_name) {
@@ -238,7 +238,7 @@ impl BytecodeGenerator {
         self.instructions.push(OpCode::Pop as u8);
     }
 
-    fn add_push_global(&mut self, name_str: String) -> Result<(), ParseError> {
+    fn add_push_global(&mut self, name_str: ByteString) -> Result<(), ParseError> {
         let global_name = match self.get_global_name(name_str) {
             Some(global_name) => global_name,
             None => return Err(ParseError::TooManyGlobals),
@@ -251,7 +251,7 @@ impl BytecodeGenerator {
         Ok(())
     }
 
-    fn add_push_local(&mut self, name_str: String) -> Result<(), ParseError> {
+    fn add_push_local(&mut self, name_str: ByteString) -> Result<(), ParseError> {
         let local_name = match self.get_local_name(name_str) {
             Some(local_name) => local_name,
             None => return Err(ParseError::TooManyGlobals),
@@ -264,7 +264,7 @@ impl BytecodeGenerator {
         Ok(())
     }
 
-    fn add_push_member(&mut self, name_str: String) -> Result<(), ParseError> {
+    fn add_push_member(&mut self, name_str: ByteString) -> Result<(), ParseError> {
         let member_name = match self.get_member_name(name_str) {
             Some(member_name) => member_name,
             None => return Err(ParseError::TooManyMembers),
@@ -277,11 +277,11 @@ impl BytecodeGenerator {
         Ok(())
     }
 
-    fn add_push_name(&mut self, name_str: String) -> Result<(), ParseError> {
-        match name_str.chars().next().unwrap() {
-            'A' ..= 'Z' => self.add_push_global(name_str),
-            'a' ..= 'z' => self.add_push_member(name_str),
-            '_' => self.add_push_local(name_str),
+    fn add_push_name(&mut self, name_str: ByteString) -> Result<(), ParseError> {
+        match name_str[0] {
+            b'A' ..= b'Z' => self.add_push_global(name_str),
+            b'a' ..= b'z' => self.add_push_member(name_str),
+            b'_' => self.add_push_local(name_str),
             _ => Err(ParseError::UnexpectedName),
         }
     }
@@ -303,7 +303,7 @@ impl BytecodeGenerator {
         self.instructions.push(OpCode::PushSelf as u8);
     }
 
-    fn add_push_string(&mut self, string: AsciiString) -> Result<(), ParseError> {
+    fn add_push_string(&mut self, string: ByteString) -> Result<(), ParseError> {
         let string_index = match self.get_string_index(string) {
             Some(string_index) => string_index,
             None => return Err(ParseError::TooManyMembers),
@@ -337,7 +337,7 @@ impl BytecodeGenerator {
             classes.push(class);
         }
 
-        let mut strings = std::vec::from_elem(AsciiString::new(), self.strings.len());
+        let mut strings = std::vec::from_elem(ByteString::new(vec![]), self.strings.len());
         for (string, index) in self.strings {
             strings[index as usize] = string;
         }
@@ -368,91 +368,91 @@ impl BytecodeGenerator {
 fn add_builtin_classes(gen: &mut BytecodeGenerator) {
     // Arithmetic class
     let mut math = ClassDefinition::new();
-    let _ = gen.add_func(&mut math, "a".to_owned());
+    let _ = gen.add_func(&mut math, ByteString::new(vec![b'a']));
     gen.add_opcode(OpCode::Add);
     gen.add_return();
-    let _ = gen.add_func(&mut math, "d".to_owned());
+    let _ = gen.add_func(&mut math, ByteString::new(vec![b'd']));
     gen.add_opcode(OpCode::Divide);
     gen.add_return();
-    let _ = gen.add_func(&mut math, "e".to_owned());
+    let _ = gen.add_func(&mut math, ByteString::new(vec![b'e']));
     gen.add_opcode(OpCode::Equal);
     gen.add_return();
-    let _ = gen.add_func(&mut math, "f".to_owned());
+    let _ = gen.add_func(&mut math, ByteString::new(vec![b'f']));
     gen.add_opcode(OpCode::Floor);
     gen.add_return();
-    let _ = gen.add_func(&mut math, "ge".to_owned());
+    let _ = gen.add_func(&mut math, ByteString::new(vec![b'g', b'e']));
     gen.add_opcode(OpCode::GreaterEqual);
     gen.add_return();
-    let _ = gen.add_func(&mut math, "gt".to_owned());
+    let _ = gen.add_func(&mut math, ByteString::new(vec![b'g', b't']));
     gen.add_opcode(OpCode::GreaterThan);
     gen.add_return();
-    let _ = gen.add_func(&mut math, "le".to_owned());
+    let _ = gen.add_func(&mut math, ByteString::new(vec![b'l', b'e']));
     gen.add_opcode(OpCode::LessEqual);
     gen.add_return();
-    let _ = gen.add_func(&mut math, "lt".to_owned());
+    let _ = gen.add_func(&mut math, ByteString::new(vec![b'l', b't']));
     gen.add_opcode(OpCode::LessThan);
     gen.add_return();
-    let _ = gen.add_func(&mut math, "m".to_owned());
+    let _ = gen.add_func(&mut math, ByteString::new(vec![b'm']));
     gen.add_opcode(OpCode::Multiply);
     gen.add_return();
-    let _ = gen.add_func(&mut math, "mod".to_owned());
+    let _ = gen.add_func(&mut math, ByteString::new(vec![b'm', b'o', b'd']));
     gen.add_opcode(OpCode::Modulo);
     gen.add_return();
-    let _ = gen.add_func(&mut math, "ne".to_owned());
+    let _ = gen.add_func(&mut math, ByteString::new(vec![b'n', b'e']));
     gen.add_opcode(OpCode::NotEqual);
     gen.add_return();
-    let _ = gen.add_func(&mut math, "s".to_owned());
+    let _ = gen.add_func(&mut math, ByteString::new(vec![b's']));
     gen.add_opcode(OpCode::Subtract);
     gen.add_return();
-    let _ = gen.add_class(math, "A".to_owned());
+    let _ = gen.add_class(math, ByteString::new(vec![b'A']));
 
     // Output class
     let mut output = ClassDefinition::new();
-    let _ = gen.add_func(&mut output, "o".to_owned());
+    let _ = gen.add_func(&mut output, ByteString::new(vec![b'o']));
     gen.add_opcode(OpCode::OutputString);
     gen.add_return();
-    let _ = gen.add_func(&mut output, "on".to_owned());
+    let _ = gen.add_func(&mut output, ByteString::new(vec![b'o', b'n']));
     gen.add_opcode(OpCode::OutputNumber);
     gen.add_return();
-    let _ = gen.add_class(output, "O".to_owned());
+    let _ = gen.add_class(output, ByteString::new(vec![b'O']));
 
     // String class
     let mut string = ClassDefinition::new();
-    let _ = gen.add_func(&mut string, "a".to_owned());
+    let _ = gen.add_func(&mut string, ByteString::new(vec![b'a']));
     gen.add_opcode(OpCode::Concat);
     gen.add_return();
-    let _ = gen.add_func(&mut string, "e".to_owned());
+    let _ = gen.add_func(&mut string, ByteString::new(vec![b'e']));
     gen.add_opcode(OpCode::StringEqual);
     gen.add_return();
-    let _ = gen.add_func(&mut string, "i".to_owned());
+    let _ = gen.add_func(&mut string, ByteString::new(vec![b'i']));
     gen.add_opcode(OpCode::Index);
     gen.add_return();
-    let _ = gen.add_func(&mut string, "l".to_owned());
+    let _ = gen.add_func(&mut string, ByteString::new(vec![b'l']));
     gen.add_opcode(OpCode::Length);
     gen.add_return();
-    let _ = gen.add_func(&mut string, "ns".to_owned());
+    let _ = gen.add_func(&mut string, ByteString::new(vec![b'n', b's']));
     gen.add_opcode(OpCode::NumToString);
     gen.add_return();
-    let _ = gen.add_func(&mut string, "sn".to_owned());
+    let _ = gen.add_func(&mut string, ByteString::new(vec![b's', b'n']));
     gen.add_opcode(OpCode::StringToNum);
     gen.add_return();
-    let _ = gen.add_class(string, "S".to_owned());
+    let _ = gen.add_class(string, ByteString::new(vec![b'S']));
 }
 
-fn skip_whitespace(iter: &mut Peekable<Chars>) -> bool {
+fn skip_whitespace(iter: &mut Peekable<Iter<u8>>) -> bool {
     while let Some(c) = iter.peek() {
-        if *c == '\'' {
+        if **c == b'\'' {
             iter.next();
             loop {
                 match iter.next() {
-                    Some('\'') => break,
+                    Some(b'\'') => break,
                     Some(_) => {},
                     None => return false,
                 }
             }
             continue;
         }
-        else if !c.is_whitespace() {
+        else if !c.is_ascii_whitespace() {
             return true;
         }
 
@@ -462,18 +462,17 @@ fn skip_whitespace(iter: &mut Peekable<Chars>) -> bool {
     false
 }
 
-fn valid_name(name: &String) -> bool {
+fn valid_name(name: &ByteString) -> bool {
     if name.len() == 0 {
         return false;
     }
 
-    let first_char = name.chars().nth(0).unwrap();
-    if first_char.is_ascii_digit() {
+    if name[0].is_ascii_digit() {
         return false;
     }
 
-    for c in name.chars() {
-        if c != '_' && !c.is_ascii_alphanumeric() {
+    for c in name {
+        if *c != b'_' && !c.is_ascii_alphanumeric() {
             return false;
         }
     }
@@ -481,19 +480,19 @@ fn valid_name(name: &String) -> bool {
     true
 }
 
-fn get_integer(int_str: &String) -> Result<u8, ParseError> {
+fn get_integer(int_str: &ByteString) -> Result<u8, ParseError> {
     if int_str.len() == 0 {
         return Err(ParseError::InvalidNumber)
     }
 
     let mut integer: usize = 0;
 
-    for c in int_str.chars() {
+    for c in int_str {
         if !c.is_ascii_digit() {
             println!("{}", c);
             return Err(ParseError::InvalidInteger);
         }
-        integer = (integer * 10) + (c as usize - '0' as usize);
+        integer = (integer * 10) + (*c as usize - '0' as usize);
         if integer > (u8::MAX as usize) {
             return Err(ParseError::IndexTooBig);
         }
@@ -502,7 +501,7 @@ fn get_integer(int_str: &String) -> Result<u8, ParseError> {
     Ok(integer as u8)
 }
 
-fn parse_name(iter: &mut Peekable<Chars>) -> Option<String> {
+fn parse_name(iter: &mut Peekable<Iter<u8>>) -> Option<ByteString> {
     if !skip_whitespace(iter) {
         return None;
     }
@@ -510,16 +509,16 @@ fn parse_name(iter: &mut Peekable<Chars>) -> Option<String> {
     match iter.peek() {
         Some(c) if c.is_ascii_alphabetic() => {
             match iter.next() {
-                Some(c) => Some(c.to_string()),
+                Some(c) => Some(ByteString::new(vec![*c])),
                 _ => unreachable!(),
             }
         },
-        Some('(') => {
+        Some(b'(') => {
             iter.next();
-            let mut name = String::new();
+            let mut name = ByteString::new(vec![]);
             loop {
                 match iter.next() {
-                    Some(')') => {
+                    Some(b')') => {
                         if valid_name(&name) {
                             return Some(name);
                         }
@@ -527,7 +526,7 @@ fn parse_name(iter: &mut Peekable<Chars>) -> Option<String> {
                             return None;
                         }
                     }
-                    Some(c) => name.push(c),
+                    Some(c) => name.push(*c),
                     None => return None,
                 }
             }
@@ -536,8 +535,8 @@ fn parse_name(iter: &mut Peekable<Chars>) -> Option<String> {
     }
 }
 
-fn parse_function(iter: &mut Peekable<Chars>, class: &mut ClassDefinition, gen: &mut BytecodeGenerator) -> Result<(), ParseError> {
-    assert!(match iter.next() { Some('[') => true, _ => false });
+fn parse_function(iter: &mut Peekable<Iter<u8>>, class: &mut ClassDefinition, gen: &mut BytecodeGenerator) -> Result<(), ParseError> {
+    assert!(match iter.next() { Some(b'[') => true, _ => false });
 
     let name = match parse_name(iter) {
         Some(name) => name,
@@ -550,26 +549,26 @@ fn parse_function(iter: &mut Peekable<Chars>, class: &mut ClassDefinition, gen: 
 
     while skip_whitespace(iter) {
         match iter.next() {
-            Some(',') => gen.add_pop(),
-            Some('^') => gen.add_return(),
-            Some('*') => gen.add_load(),
-            Some('=') => gen.add_store(),
-            Some('?') => gen.add_call(),
-            Some('.') => gen.add_load_from(),
-            Some(c) if c.is_ascii_lowercase() => gen.add_push_member(c.to_string())?,
-            Some(c) if c.is_ascii_uppercase() => gen.add_push_global(c.to_string())?,
-            Some(c) if c.is_ascii_digit() => gen.add_duplicate((c as u8) - ('0' as u8)),
-            Some('$') => {
+            Some(b',') => gen.add_pop(),
+            Some(b'^') => gen.add_return(),
+            Some(b'*') => gen.add_load(),
+            Some(b'=') => gen.add_store(),
+            Some(b'?') => gen.add_call(),
+            Some(b'.') => gen.add_load_from(),
+            Some(c) if c.is_ascii_lowercase() => gen.add_push_member(ByteString::new(vec![*c]))?,
+            Some(c) if c.is_ascii_uppercase() => gen.add_push_global(ByteString::new(vec![*c]))?,
+            Some(c) if c.is_ascii_digit() => gen.add_duplicate(c - ('0' as u8)),
+            Some(b'$') => {
                 gen.add_push_self();
                 gen.add_store();
             },
-            Some('!') => {
+            Some(b'!') => {
                 gen.add_load();
                 gen.add_instantiate();
                 gen.add_store_keep();
                 gen.add_construct();
             },
-            Some('/') => {
+            Some(b'/') => {
                 let loop_name = match parse_name(iter) {
                     Some(name) => name,
                     None => return Err(ParseError::MissingLoopName),
@@ -579,7 +578,7 @@ fn parse_function(iter: &mut Peekable<Chars>, class: &mut ClassDefinition, gen: 
                 gen.add_load();
                 loop_stack.push((loop_name, gen.add_jump_if_not()))
             },
-            Some('\\') => {
+            Some(b'\\') => {
                 match loop_stack.pop() {
                     None => return Err(ParseError::InvalidChar),
                     Some((loop_name, loop_start)) => {
@@ -589,11 +588,11 @@ fn parse_function(iter: &mut Peekable<Chars>, class: &mut ClassDefinition, gen: 
                     }
                 }
             },
-            Some('(') => {
-                let mut name = String::new();
+            Some(b'(') => {
+                let mut name = ByteString::new(vec![]);
                 loop {
                     match iter.next() {
-                        Some(')') => {
+                        Some(b')') => {
                             if valid_name(&name) {
                                 gen.add_push_name(name)?;
                                 break;
@@ -603,42 +602,36 @@ fn parse_function(iter: &mut Peekable<Chars>, class: &mut ClassDefinition, gen: 
                                 break;
                             }
                         }
-                        Some(c) => name.push(c),
+                        Some(c) => name.push(*c),
                         None => return Err(ParseError::UnendedParentheses),
                     }
                 }
             },
-            Some('"') => {
-                let mut string = AsciiString::new();
+            Some(b'"') => {
+                let mut string = ByteString::new(vec![]);
                 loop {
                     match iter.next() {
-                        Some('"') => {
+                        Some(b'"') => {
                             gen.add_push_string(string)?;
                             break;
                         }
-                        Some('\\') => {
+                        Some(b'\\') => {
                             match iter.next() {
-                                Some('n') => string.push(AsciiChar::LineFeed),
-                                Some(c) => match c.to_ascii_char() {
-                                    Ok(ch) => string.push(ch),
-                                    Err(_) => return Err(ParseError::InvalidString),
-                                },
+                                Some(b'n') => string.push(b'\n'),
+                                Some(c) => string.push(*c),
                                 None => return Err(ParseError::UnendedString),
                             }
                         }
-                        Some(c) => match c.to_ascii_char() {
-                            Ok(ch) => string.push(ch),
-                            Err(_) => return Err(ParseError::InvalidString),
-                        },
+                        Some(c) => string.push(*c),
                         None => return Err(ParseError::UnendedString),
                     }
                 }
             },
-            Some('<') => {
+            Some(b'<') => {
                 let mut num_str = String::new();
                 loop {
                     match iter.next() {
-                        Some('>') => {
+                        Some(b'>') => {
                             let number = match f64::from_str(&num_str) {
                                 Ok(num) => num,
                                 Err(_) => return Err(ParseError::InvalidNumber),
@@ -647,12 +640,12 @@ fn parse_function(iter: &mut Peekable<Chars>, class: &mut ClassDefinition, gen: 
                             gen.add_push_number(number)?;
                             break;
                         },
-                        Some(c) => num_str.push(c),
+                        Some(c) => num_str.push(*c as char),
                         None => return Err(ParseError::UnendedNumber),
                     }
                 }
             },
-            Some(']') => {
+            Some(b']') => {
                 if !loop_stack.is_empty() {
                     return Err(ParseError::UnendedLoop);
                 }
@@ -668,8 +661,8 @@ fn parse_function(iter: &mut Peekable<Chars>, class: &mut ClassDefinition, gen: 
     Err(ParseError::UnendedFunc)
 }
 
-fn parse_class(iter: &mut Peekable<Chars>, gen: &mut BytecodeGenerator) -> Result<(), ParseError> {
-    assert!(match iter.next() { Some('{') => true, _ => false });
+fn parse_class(iter: &mut Peekable<Iter<u8>>, gen: &mut BytecodeGenerator) -> Result<(), ParseError> {
+    assert!(match iter.next() { Some(b'{') => true, _ => false });
 
     let name = match parse_name(iter) {
         Some(name) => name,
@@ -680,10 +673,10 @@ fn parse_class(iter: &mut Peekable<Chars>, gen: &mut BytecodeGenerator) -> Resul
 
     while skip_whitespace(iter) {
         match iter.peek() {
-            Some('[') => {
+            Some(b'[') => {
                 parse_function(iter, &mut class, gen)?;
             },
-            Some('}') => {
+            Some(b'}') => {
                 iter.next();
                 return gen.add_class(class, name);
             },
@@ -697,15 +690,15 @@ fn parse_class(iter: &mut Peekable<Chars>, gen: &mut BytecodeGenerator) -> Resul
     Err(ParseError::UnendedClass)
 }
 
-pub fn parse_program(code: &str) -> Result<BytecodeProgram, ParseError> {
+pub fn parse_program(code: &[u8]) -> Result<BytecodeProgram, ParseError> {
     let mut gen = BytecodeGenerator::new();
-    let mut iter = code.chars().peekable();
+    let mut iter = code.iter().peekable();
 
     add_builtin_classes(&mut gen);
 
     while skip_whitespace(&mut iter) {
         match iter.peek() {
-            Some('{') => parse_class(&mut iter, &mut gen)?,
+            Some(b'{') => parse_class(&mut iter, &mut gen)?,
             _ => return Err(ParseError::InvalidChar),
         }
     }

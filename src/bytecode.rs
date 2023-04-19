@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use ascii::AsciiString;
+use byte_string::ByteString;
 
 #[repr(u8)]
 pub enum OpCode {
@@ -72,7 +72,7 @@ pub struct BytecodeProgram {
 
     pub classes: Vec<ClassDefinition>,
 
-    pub strings: Vec<AsciiString>,
+    pub strings: Vec<ByteString>,
 
     pub numbers: Vec<f64>,
 
