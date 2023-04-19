@@ -43,10 +43,10 @@ Glass Interpreter Feature List:
         - [x] `mod` function
         - [x] `ne` function
         - [x] `s` function
-    - [ ] `I` class
+    - [x] `I` class
         - [x] `c` function
         - [x] `e` function
-        - [ ] `l` function
+        - [x] `l` function
     - [x] `O` class
         - [x] `o` function
         - [x] `on` function

@@ -24,6 +24,7 @@ const OPCODE_GREATER_EQUAL: u8 = OpCode::GreaterEqual as u8;
 const OPCODE_INDEX: u8 = OpCode::Index as u8;
 const OPCODE_INPUT_CHAR: u8 = OpCode::InputChar as u8;
 const OPCODE_INPUT_EOF: u8 = OpCode::InputEof as u8;
+const OPCODE_INPUT_LINE: u8 = OpCode::InputLine as u8;
 const OPCODE_INSTANTIATE: u8 = OpCode::Instantiate as u8;
 const OPCODE_JUMP_IF: u8 = OpCode::JumpIf as u8;
 const OPCODE_JUMP_IF_NOT: u8 = OpCode::JumpIfNot as u8;
@@ -238,7 +239,7 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                 value_stack.push(GlassValue::String(strings.len() - 1));
             },
             OPCODE_INPUT_CHAR => {
-                let mut input_bytes: [u8; 1] = [ 0 ];
+                let mut input_bytes = [ 0 ];
                 match std::io::stdin().read(&mut input_bytes) {
                     Ok(amount_read) => {
                         input_eof = amount_read == 0;
@@ -250,6 +251,26 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
             },
             OPCODE_INPUT_EOF => {
                 value_stack.push(GlassValue::Number(if input_eof { 1.0 } else { 0.0 }));
+            },
+            OPCODE_INPUT_LINE => {
+                let mut line = Vec::new();
+                let mut input_bytes = [ 0 ];
+
+                loop {
+                    match std::io::stdin().read(&mut input_bytes) {
+                        Ok(0) => break,
+                        Ok(_) => {
+                            line.push(input_bytes[0]);
+                            if input_bytes[0] == b'\n' {
+                                break;
+                            }
+                        },
+                        Err(_) => return Err(RuntimeError::IOError),
+                    }
+                }
+
+                strings.push(ByteString::new(line));
+                value_stack.push(GlassValue::String(strings.len() - 1));
             },
             OPCODE_INSTANTIATE => {
                 match value_stack.pop() {

@@ -35,6 +35,7 @@ pub enum OpCode {
     Index,
     InputChar,
     InputEof,
+    InputLine,
     Length,
     LessEqual,
     LessThan,
