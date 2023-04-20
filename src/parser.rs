@@ -434,6 +434,9 @@ fn add_builtin_classes(gen: &mut BytecodeGenerator) {
     let _ = gen.add_func(&mut string, ByteString::new(vec![b'a']));
     gen.add_opcode(OpCode::Concat);
     gen.add_return();
+    let _ = gen.add_func(&mut string, ByteString::new(vec![b'd']));
+    gen.add_opcode(OpCode::StringSplit);
+    gen.add_return();
     let _ = gen.add_func(&mut string, ByteString::new(vec![b'e']));
     gen.add_opcode(OpCode::StringEqual);
     gen.add_return();

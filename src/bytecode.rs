@@ -47,6 +47,7 @@ pub enum OpCode {
     OutputString,
     StringEqual,
     StringReplace,
+    StringSplit,
     StringToNum,
     Subtract,
 }

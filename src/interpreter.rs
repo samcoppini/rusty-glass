@@ -51,6 +51,7 @@ const OPCODE_STORE: u8 = OpCode::Store as u8;
 const OPCODE_STORE_KEEP: u8 = OpCode::StoreKeep as u8;
 const OPCODE_STRING_EQUAL: u8 = OpCode::StringEqual as u8;
 const OPCODE_STRING_REPLACE: u8 = OpCode::StringReplace as u8;
+const OPCODE_STRING_SPLIT: u8 = OpCode::StringSplit as u8;
 const OPCODE_STRING_TO_NUM: u8 = OpCode::StringToNum as u8;
 const OPCODE_SUBTRACT: u8 = OpCode::Subtract as u8;
 
@@ -540,6 +541,23 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
 
                 string[index] = char_str[0];
                 strings.push(string);
+                value_stack.push(GlassValue::String(strings.len() - 1));
+            },
+            OPCODE_STRING_SPLIT => {
+                let index_float = pop_number(&mut value_stack)?;
+                let string = &strings[pop_string(&mut value_stack)?];
+
+                if index_float.floor() != index_float || index_float < 0.0 || index_float > string.len() as f64 {
+                    return Err(RuntimeError::InvalidIndex);
+                }
+
+                let index = index_float as usize;
+                let str1 = ByteString::new(Vec::from(&string[..index]));
+                let str2 = ByteString::new(Vec::from(&string[index..]));
+
+                strings.push(str1);
+                value_stack.push(GlassValue::String(strings.len() - 1));
+                strings.push(str2);
                 value_stack.push(GlassValue::String(strings.len() - 1));
             },
             OPCODE_STRING_TO_NUM => {
