@@ -69,6 +69,7 @@ Glass Interpreter Feature List:
     - [ ] Meaningful error messages for parse errors
     - [ ] Stack traces for runtime errors
     - [ ] Environment variables as preset global variables
+    - [ ] Command-line option to the display the bytecode
 - [ ] Potential extensions ?
     - [ ] Standary library extensions
         - [ ] Functions for accessing command line args
@@ -76,3 +77,5 @@ Glass Interpreter Feature List:
         - [ ] Function for getting current time
         - [ ] Function for flushing output
         - [ ] Function for outputting to stderr
+    - [ ] Language extensions
+        - [ ] Call constructor for M object before calling M.m on program start
