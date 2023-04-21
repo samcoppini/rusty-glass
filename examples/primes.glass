@@ -1,0 +1,56 @@
+{(Null)
+    [(notNull)
+        <0>
+    ]
+}
+
+{(Node)
+    [(c__)
+        (val)1=,
+        (next)1=,
+    ]
+
+    [(getNext)
+        (next)*
+    ]
+
+    [(getVal)
+        (val)*
+    ]
+
+    [(notNull)
+        <1>
+    ]
+}
+
+{M
+    [m
+        (_a)A!
+        (_o)O!
+        (_n)<2>=
+        (_root)(Null)!
+
+        /(_n)
+            (_node)(_root)*=
+            (_null)(_node)(notNull).?=
+            (_prime)<1>=
+            /(_null)
+                (_divisible)(_n)*(_node)(getVal).?(_a)(mod).?<0>(_a)e.?=
+                /(_divisible)
+                    (_prime)<0>=
+                    (_divisible)<0>=
+                \
+                (_node)(_node)(getNext).?=
+                (_null)(_node)(notNull).?=
+            \
+
+            /(_prime)
+                (_root)*(_n)*(_root)(Node)!
+                (_n)*(_o)(on).?"\n"(_o)o.?
+                (_prime)<0>=
+            \
+
+            (_n)(_n)*<1>(_a)a.?=
+        \
+    ]
+}
