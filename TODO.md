@@ -29,7 +29,7 @@ Glass Interpreter Feature List:
         - [x] Implement `?` command
         - [x] Implement `.` command
     - [x] Comments
-- [ ] Standard library implementation
+- [x] Standard library implementation
     - [x] `A` class
         - [x] `a` function
         - [x] `d` function
@@ -59,9 +59,9 @@ Glass Interpreter Feature List:
         - [x] `ns` function
         - [x] `si` function
         - [x] `sn` function
-    - [ ] `V` class
-        - [ ] `d` function
-        - [ ] `n` function
+    - [x] `V` class
+        - [x] `d` function
+        - [x] `n` function
 - [ ] Other features:
     - [ ] Garbage collection
     - [ ] Multi-file programs

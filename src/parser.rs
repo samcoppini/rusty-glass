@@ -456,6 +456,17 @@ fn add_builtin_classes(gen: &mut BytecodeGenerator) {
     gen.add_opcode(OpCode::StringToNum);
     gen.add_return();
     let _ = gen.add_class(string, ByteString::new(vec![b'S']));
+
+    // Variable class
+    let mut vars = ClassDefinition::new();
+    let _ = gen.add_func(&mut vars, ByteString::new(vec![b'd']));
+    gen.add_opcode(OpCode::VarDelete);
+    gen.add_return();
+    let _ = gen.add_func(&mut vars, ByteString::new(vec![b'n']));
+    gen.add_opcode(OpCode::VarNew);
+    gen.add_return();
+
+    let _ = gen.add_class(vars, ByteString::new(vec![b'V']));
 }
 
 fn skip_whitespace(iter: &mut Peekable<Iter<u8>>) -> bool {

@@ -50,6 +50,8 @@ pub enum OpCode {
     StringSplit,
     StringToNum,
     Subtract,
+    VarDelete,
+    VarNew,
 }
 
 pub type LocalName = u16;
