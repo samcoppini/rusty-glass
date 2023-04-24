@@ -74,6 +74,13 @@ impl ClassDefinition {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct FilePosition {
+    pub line: usize,
+
+    pub col: usize,
+}
+
 pub struct BytecodeProgram {
     pub class_names: Vec<GlobalName>,
 
@@ -88,4 +95,8 @@ pub struct BytecodeProgram {
     pub main_class: GlobalName,
 
     pub main_func: MemberName,
+
+    pub files: Vec<(OpcodeIndex, String)>,
+
+    pub positions: Vec<(OpcodeIndex, FilePosition)>,
 }

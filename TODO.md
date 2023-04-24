@@ -67,7 +67,8 @@ Glass Interpreter Feature List:
     - [ ] Multi-file programs
     - [ ] Reporting multiple error messages when parsing
     - [ ] Meaningful error messages for parse errors
-    - [ ] Stack traces for runtime errors
+    - [x] Stack traces for runtime errors
+    - [ ] Better runtime error message descriptions
     - [ ] Environment variables as preset global variables
     - [ ] Command-line option to the display the bytecode
 - [ ] Potential extensions ?

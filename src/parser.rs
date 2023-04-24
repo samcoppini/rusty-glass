@@ -45,6 +45,51 @@ type NumberConstantIndex = u16;
 
 type StringConstantIndex = u16;
 
+impl FilePosition {
+    fn advance(&mut self, c: u8) {
+        if c == b'\n' {
+            self.line += 1;
+            self.col = 1;
+        }
+        else {
+            self.col += 1;
+        }
+    }
+}
+
+struct CodeReader<'a> {
+    code: Peekable<Iter<'a, u8>>,
+
+    pos: FilePosition,
+}
+
+impl<'a> CodeReader<'a> {
+    fn new(code: &[u8]) -> CodeReader {
+        CodeReader {
+            code: code.iter().peekable(),
+            pos: FilePosition { line: 1, col: 1 }
+        }
+    }
+
+    fn peek(&mut self) -> Option<u8> {
+        match self.code.peek() {
+            Some(c) => Some(**c),
+            None => None,
+        }
+    }
+
+    fn next(&mut self) -> Option<(u8, FilePosition)> {
+        match self.code.next() {
+            None => None,
+            Some(c) => {
+                let pos = self.pos;
+                self.pos.advance(*c);
+                Some((*c, pos))
+            }
+        }
+    }
+}
+
 struct BytecodeGenerator {
     instructions: Vec<u8>,
 
@@ -59,6 +104,10 @@ struct BytecodeGenerator {
     strings: HashMap<ByteString, StringConstantIndex>,
 
     numbers: Vec<f64>,
+
+    files: Vec<(OpcodeIndex, String)>,
+
+    positions: Vec<(OpcodeIndex, FilePosition)>,
 }
 
 impl BytecodeGenerator {
@@ -71,6 +120,8 @@ impl BytecodeGenerator {
             local_names: HashMap::new(),
             strings: HashMap::new(),
             numbers: Vec::new(),
+            files: Vec::new(),
+            positions: Vec::new(),
         }
     }
 
@@ -178,28 +229,44 @@ impl BytecodeGenerator {
         }
     }
 
-    fn add_opcode(&mut self, opcode: OpCode) {
+    fn set_filename(&mut self, file: String) {
+        self.files.push((self.instructions.len(), file));
+    }
+
+    fn set_position(&mut self, pos: FilePosition) {
+        match self.positions.last() {
+            Some((_, old_pos)) => {
+                if pos != *old_pos {
+                    self.positions.push((self.instructions.len(), pos));
+                }
+            },
+            _ => self.positions.push((self.instructions.len(), pos)),
+        }
+    }
+
+    fn add_opcode(&mut self, opcode: OpCode, pos: FilePosition) {
+        self.set_position(pos);
         self.instructions.push(opcode as u8);
     }
 
-    fn add_call(&mut self) {
-        self.instructions.push(OpCode::Call as u8);
+    fn add_call(&mut self, pos: FilePosition) {
+        self.add_opcode(OpCode::Call, pos);
     }
 
-    fn add_construct(&mut self) {
-        self.instructions.push(OpCode::Construct as u8);
+    fn add_construct(&mut self, pos: FilePosition) {
+        self.add_opcode(OpCode::Construct, pos);
     }
 
-    fn add_duplicate(&mut self, index: u8) {
-        self.instructions.push(OpCode::Duplicate as u8);
+    fn add_duplicate(&mut self, index: u8, pos: FilePosition) {
+        self.add_opcode(OpCode::Duplicate, pos);
         self.instructions.push(index);
     }
 
-    fn add_instantiate(&mut self) {
-        self.instructions.push(OpCode::Instantiate as u8);
+    fn add_instantiate(&mut self, pos: FilePosition) {
+        self.add_opcode(OpCode::Instantiate, pos);
     }
 
-    fn add_jump_if(&mut self, loop_start: usize) -> Result<(), ParseError> {
+    fn add_jump_if(&mut self, loop_start: usize, pos: FilePosition) -> Result<(), ParseError> {
         let jump_amount = self.instructions.len() - loop_start + 3;
         if jump_amount > (u16::MAX as usize) {
             return Err(ParseError::LoopTooLong);
@@ -208,7 +275,7 @@ impl BytecodeGenerator {
         let hi = (jump_amount >> 8) as u8;
         let lo = (jump_amount & 0xFF) as u8;
 
-        self.instructions.push(OpCode::JumpIf as u8);
+        self.add_opcode(OpCode::JumpIf, pos);
         self.instructions.push(hi);
         self.instructions.push(lo);
 
@@ -218,114 +285,114 @@ impl BytecodeGenerator {
         Ok(())
     }
 
-    fn add_jump_if_not(&mut self) -> usize {
-        self.instructions.push(OpCode::JumpIfNot as u8);
+    fn add_jump_if_not(&mut self, pos: FilePosition) -> usize {
+        self.add_opcode(OpCode::JumpIfNot, pos);
         self.instructions.push(0);
         self.instructions.push(0);
 
         self.instructions.len()
     }
 
-    fn add_load(&mut self) {
-        self.instructions.push(OpCode::Load as u8);
+    fn add_load(&mut self, pos: FilePosition) {
+        self.add_opcode(OpCode::Load, pos);
     }
 
-    fn add_load_from(&mut self) {
-        self.instructions.push(OpCode::LoadFrom as u8);
+    fn add_load_from(&mut self, pos: FilePosition) {
+        self.add_opcode(OpCode::LoadFrom, pos);
     }
 
-    fn add_pop(&mut self) {
-        self.instructions.push(OpCode::Pop as u8);
+    fn add_pop(&mut self, pos: FilePosition) {
+        self.add_opcode(OpCode::Pop, pos);
     }
 
-    fn add_push_global(&mut self, name_str: ByteString) -> Result<(), ParseError> {
+    fn add_push_global(&mut self, name_str: ByteString, pos: FilePosition) -> Result<(), ParseError> {
         let global_name = match self.get_global_name(name_str) {
             Some(global_name) => global_name,
             None => return Err(ParseError::TooManyGlobals),
         };
 
-        self.instructions.push(OpCode::PushGlobal as u8);
+        self.add_opcode(OpCode::PushGlobal, pos);
         self.instructions.push((global_name >> 8) as u8);
         self.instructions.push((global_name & 0xFF) as u8);
 
         Ok(())
     }
 
-    fn add_push_local(&mut self, name_str: ByteString) -> Result<(), ParseError> {
+    fn add_push_local(&mut self, name_str: ByteString, pos: FilePosition) -> Result<(), ParseError> {
         let local_name = match self.get_local_name(name_str) {
             Some(local_name) => local_name,
             None => return Err(ParseError::TooManyGlobals),
         };
 
-        self.instructions.push(OpCode::PushLocal as u8);
+        self.add_opcode(OpCode::PushLocal, pos);
         self.instructions.push((local_name >> 8) as u8);
         self.instructions.push((local_name & 0xFF) as u8);
 
         Ok(())
     }
 
-    fn add_push_member(&mut self, name_str: ByteString) -> Result<(), ParseError> {
+    fn add_push_member(&mut self, name_str: ByteString, pos: FilePosition) -> Result<(), ParseError> {
         let member_name = match self.get_member_name(name_str) {
             Some(member_name) => member_name,
             None => return Err(ParseError::TooManyMembers),
         };
 
-        self.instructions.push(OpCode::PushMember as u8);
+        self.add_opcode(OpCode::PushMember, pos);
         self.instructions.push((member_name >> 8) as u8);
         self.instructions.push((member_name & 0xFF) as u8);
 
         Ok(())
     }
 
-    fn add_push_name(&mut self, name_str: ByteString) -> Result<(), ParseError> {
+    fn add_push_name(&mut self, name_str: ByteString, pos: FilePosition) -> Result<(), ParseError> {
         match name_str[0] {
-            b'A' ..= b'Z' => self.add_push_global(name_str),
-            b'a' ..= b'z' => self.add_push_member(name_str),
-            b'_' => self.add_push_local(name_str),
+            b'A' ..= b'Z' => self.add_push_global(name_str, pos),
+            b'a' ..= b'z' => self.add_push_member(name_str, pos),
+            b'_' => self.add_push_local(name_str, pos),
             _ => Err(ParseError::UnexpectedName),
         }
     }
 
-    fn add_push_number(&mut self, number: f64) -> Result<(), ParseError> {
+    fn add_push_number(&mut self, number: f64, pos: FilePosition) -> Result<(), ParseError> {
         let number_index = match self.get_number_index(number) {
             Some(index) => index,
             None => return Err(ParseError::TooManyNumbers),
         };
 
-        self.instructions.push(OpCode::PushNumber as u8);
+        self.add_opcode(OpCode::PushNumber, pos);
         self.instructions.push((number_index >> 8) as u8);
         self.instructions.push((number_index & 0xFF) as u8);
 
         Ok(())
     }
 
-    fn add_push_self(&mut self) {
-        self.instructions.push(OpCode::PushSelf as u8);
+    fn add_push_self(&mut self, pos: FilePosition) {
+        self.add_opcode(OpCode::PushSelf, pos);
     }
 
-    fn add_push_string(&mut self, string: ByteString) -> Result<(), ParseError> {
+    fn add_push_string(&mut self, string: ByteString, pos: FilePosition) -> Result<(), ParseError> {
         let string_index = match self.get_string_index(string) {
             Some(string_index) => string_index,
             None => return Err(ParseError::TooManyMembers),
         };
 
-        self.instructions.push(OpCode::PushString as u8);
+        self.add_opcode(OpCode::PushString, pos);
         self.instructions.push((string_index >> 8) as u8);
         self.instructions.push((string_index & 0xFF) as u8);
 
         Ok(())
     }
 
-    fn add_return(&mut self) {
-        self.instructions.push(OpCode::Return as u8);
+    fn add_return(&mut self, pos: FilePosition) {
+        self.add_opcode(OpCode::Return, pos);
     }
 
-    fn add_store(&mut self) {
-        self.instructions.push(OpCode::Store as u8);
+    fn add_store(&mut self, pos: FilePosition) {
+        self.add_opcode(OpCode::Store, pos);
     }
 
-    fn add_store_keep(&mut self) {
-        self.instructions.push(OpCode::StoreKeep as u8);
+    fn add_store_keep(&mut self, pos: FilePosition) {
+        self.add_opcode(OpCode::StoreKeep, pos);
     }
 
     fn get_program(self) -> Result<BytecodeProgram, ParseError> {
@@ -361,121 +428,126 @@ impl BytecodeGenerator {
             instructions: self.instructions,
             main_class: main_class_name,
             main_func: main_func_name,
+            files: self.files,
+            positions: self.positions,
         })
     }
 }
 
 fn add_builtin_classes(gen: &mut BytecodeGenerator) {
+    gen.set_filename("<builtin>".to_owned());
+    let builtin_pos = FilePosition { line: 0, col: 0 };
+
     // Arithmetic class
     let mut math = ClassDefinition::new();
     let _ = gen.add_func(&mut math, ByteString::new(vec![b'a']));
-    gen.add_opcode(OpCode::Add);
-    gen.add_return();
+    gen.add_opcode(OpCode::Add, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_func(&mut math, ByteString::new(vec![b'd']));
-    gen.add_opcode(OpCode::Divide);
-    gen.add_return();
+    gen.add_opcode(OpCode::Divide, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_func(&mut math, ByteString::new(vec![b'e']));
-    gen.add_opcode(OpCode::Equal);
-    gen.add_return();
+    gen.add_opcode(OpCode::Equal, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_func(&mut math, ByteString::new(vec![b'f']));
-    gen.add_opcode(OpCode::Floor);
-    gen.add_return();
+    gen.add_opcode(OpCode::Floor, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_func(&mut math, ByteString::new(vec![b'g', b'e']));
-    gen.add_opcode(OpCode::GreaterEqual);
-    gen.add_return();
+    gen.add_opcode(OpCode::GreaterEqual, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_func(&mut math, ByteString::new(vec![b'g', b't']));
-    gen.add_opcode(OpCode::GreaterThan);
-    gen.add_return();
+    gen.add_opcode(OpCode::GreaterThan, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_func(&mut math, ByteString::new(vec![b'l', b'e']));
-    gen.add_opcode(OpCode::LessEqual);
-    gen.add_return();
+    gen.add_opcode(OpCode::LessEqual, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_func(&mut math, ByteString::new(vec![b'l', b't']));
-    gen.add_opcode(OpCode::LessThan);
-    gen.add_return();
+    gen.add_opcode(OpCode::LessThan, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_func(&mut math, ByteString::new(vec![b'm']));
-    gen.add_opcode(OpCode::Multiply);
-    gen.add_return();
+    gen.add_opcode(OpCode::Multiply, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_func(&mut math, ByteString::new(vec![b'm', b'o', b'd']));
-    gen.add_opcode(OpCode::Modulo);
-    gen.add_return();
+    gen.add_opcode(OpCode::Modulo, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_func(&mut math, ByteString::new(vec![b'n', b'e']));
-    gen.add_opcode(OpCode::NotEqual);
-    gen.add_return();
+    gen.add_opcode(OpCode::NotEqual, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_func(&mut math, ByteString::new(vec![b's']));
-    gen.add_opcode(OpCode::Subtract);
-    gen.add_return();
+    gen.add_opcode(OpCode::Subtract, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_class(math, ByteString::new(vec![b'A']));
 
     // Input class
     let mut input = ClassDefinition::new();
     let _ = gen.add_func(&mut input, ByteString::new(vec![b'c']));
-    gen.add_opcode(OpCode::InputChar);
-    gen.add_return();
+    gen.add_opcode(OpCode::InputChar, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_func(&mut input, ByteString::new(vec![b'e']));
-    gen.add_opcode(OpCode::InputEof);
-    gen.add_return();
+    gen.add_opcode(OpCode::InputEof, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_func(&mut input, ByteString::new(vec![b'l']));
-    gen.add_opcode(OpCode::InputLine);
-    gen.add_return();
+    gen.add_opcode(OpCode::InputLine, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_class(input, ByteString(vec![b'I']));
 
     // Output class
     let mut output = ClassDefinition::new();
     let _ = gen.add_func(&mut output, ByteString::new(vec![b'o']));
-    gen.add_opcode(OpCode::OutputString);
-    gen.add_return();
+    gen.add_opcode(OpCode::OutputString, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_func(&mut output, ByteString::new(vec![b'o', b'n']));
-    gen.add_opcode(OpCode::OutputNumber);
-    gen.add_return();
+    gen.add_opcode(OpCode::OutputNumber, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_class(output, ByteString::new(vec![b'O']));
 
     // String class
     let mut string = ClassDefinition::new();
     let _ = gen.add_func(&mut string, ByteString::new(vec![b'a']));
-    gen.add_opcode(OpCode::Concat);
-    gen.add_return();
+    gen.add_opcode(OpCode::Concat, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_func(&mut string, ByteString::new(vec![b'd']));
-    gen.add_opcode(OpCode::StringSplit);
-    gen.add_return();
+    gen.add_opcode(OpCode::StringSplit, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_func(&mut string, ByteString::new(vec![b'e']));
-    gen.add_opcode(OpCode::StringEqual);
-    gen.add_return();
+    gen.add_opcode(OpCode::StringEqual, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_func(&mut string, ByteString::new(vec![b'i']));
-    gen.add_opcode(OpCode::Index);
-    gen.add_return();
+    gen.add_opcode(OpCode::Index, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_func(&mut string, ByteString::new(vec![b'l']));
-    gen.add_opcode(OpCode::Length);
-    gen.add_return();
+    gen.add_opcode(OpCode::Length, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_func(&mut string, ByteString::new(vec![b'n', b's']));
-    gen.add_opcode(OpCode::NumToString);
-    gen.add_return();
+    gen.add_opcode(OpCode::NumToString, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_func(&mut string, ByteString::new(vec![b's', b'i']));
-    gen.add_opcode(OpCode::StringReplace);
-    gen.add_return();
+    gen.add_opcode(OpCode::StringReplace, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_func(&mut string, ByteString::new(vec![b's', b'n']));
-    gen.add_opcode(OpCode::StringToNum);
-    gen.add_return();
+    gen.add_opcode(OpCode::StringToNum, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_class(string, ByteString::new(vec![b'S']));
 
     // Variable class
     let mut vars = ClassDefinition::new();
     let _ = gen.add_func(&mut vars, ByteString::new(vec![b'd']));
-    gen.add_opcode(OpCode::VarDelete);
-    gen.add_return();
+    gen.add_opcode(OpCode::VarDelete, builtin_pos);
+    gen.add_return(builtin_pos);
     let _ = gen.add_func(&mut vars, ByteString::new(vec![b'n']));
-    gen.add_opcode(OpCode::VarNew);
-    gen.add_return();
+    gen.add_opcode(OpCode::VarNew, builtin_pos);
+    gen.add_return(builtin_pos);
 
     let _ = gen.add_class(vars, ByteString::new(vec![b'V']));
 }
 
-fn skip_whitespace(iter: &mut Peekable<Iter<u8>>) -> bool {
-    while let Some(c) = iter.peek() {
-        if **c == b'\'' {
-            iter.next();
+fn skip_whitespace(reader: &mut CodeReader) -> bool {
+    while let Some(c) = reader.peek() {
+        if c == b'\'' {
+            reader.next();
             loop {
-                match iter.next() {
-                    Some(b'\'') => break,
+                match reader.next() {
+                    Some((b'\'', _)) => break,
                     Some(_) => {},
                     None => return false,
                 }
@@ -486,7 +558,7 @@ fn skip_whitespace(iter: &mut Peekable<Iter<u8>>) -> bool {
             return true;
         }
 
-        iter.next();
+        reader.next();
     }
 
     false
@@ -531,24 +603,24 @@ fn get_integer(int_str: &ByteString) -> Result<u8, ParseError> {
     Ok(integer as u8)
 }
 
-fn parse_name(iter: &mut Peekable<Iter<u8>>) -> Option<ByteString> {
-    if !skip_whitespace(iter) {
+fn parse_name(reader: &mut CodeReader) -> Option<ByteString> {
+    if !skip_whitespace(reader) {
         return None;
     }
 
-    match iter.peek() {
+    match reader.peek() {
         Some(c) if c.is_ascii_alphabetic() => {
-            match iter.next() {
-                Some(c) => Some(ByteString::new(vec![*c])),
+            match reader.next() {
+                Some((c, _)) => Some(ByteString::new(vec![c])),
                 _ => unreachable!(),
             }
         },
         Some(b'(') => {
-            iter.next();
+            reader.next();
             let mut name = ByteString::new(vec![]);
             loop {
-                match iter.next() {
-                    Some(b')') => {
+                match reader.next() {
+                    Some((b')', _)) => {
                         if valid_name(&name) {
                             return Some(name);
                         }
@@ -556,7 +628,7 @@ fn parse_name(iter: &mut Peekable<Iter<u8>>) -> Option<ByteString> {
                             return None;
                         }
                     }
-                    Some(c) => name.push(*c),
+                    Some((c, _)) => name.push(c),
                     None => return None,
                 }
             }
@@ -565,10 +637,10 @@ fn parse_name(iter: &mut Peekable<Iter<u8>>) -> Option<ByteString> {
     }
 }
 
-fn parse_function(iter: &mut Peekable<Iter<u8>>, class: &mut ClassDefinition, gen: &mut BytecodeGenerator) -> Result<(), ParseError> {
-    assert!(match iter.next() { Some(b'[') => true, _ => false });
+fn parse_function(reader: &mut CodeReader, class: &mut ClassDefinition, gen: &mut BytecodeGenerator) -> Result<(), ParseError> {
+    assert!(match reader.next() { Some((b'[', _)) => true, _ => false });
 
-    let name = match parse_name(iter) {
+    let name = match parse_name(reader) {
         Some(name) => name,
         None => return Err(ParseError::MissingFuncName),
     };
@@ -577,110 +649,110 @@ fn parse_function(iter: &mut Peekable<Iter<u8>>, class: &mut ClassDefinition, ge
 
     let mut loop_stack = Vec::new();
 
-    while skip_whitespace(iter) {
-        match iter.next() {
-            Some(b',') => gen.add_pop(),
-            Some(b'^') => gen.add_return(),
-            Some(b'*') => gen.add_load(),
-            Some(b'=') => gen.add_store(),
-            Some(b'?') => gen.add_call(),
-            Some(b'.') => gen.add_load_from(),
-            Some(c) if c.is_ascii_lowercase() => gen.add_push_member(ByteString::new(vec![*c]))?,
-            Some(c) if c.is_ascii_uppercase() => gen.add_push_global(ByteString::new(vec![*c]))?,
-            Some(c) if c.is_ascii_digit() => gen.add_duplicate(c - ('0' as u8)),
-            Some(b'$') => {
-                gen.add_push_self();
-                gen.add_store();
+    while skip_whitespace(reader) {
+        match reader.next() {
+            Some((b',', pos)) => gen.add_pop(pos),
+            Some((b'^', pos)) => gen.add_return(pos),
+            Some((b'*', pos)) => gen.add_load(pos),
+            Some((b'=', pos)) => gen.add_store(pos),
+            Some((b'?', pos)) => gen.add_call(pos),
+            Some((b'.', pos)) => gen.add_load_from(pos),
+            Some((c, pos)) if c.is_ascii_lowercase() => gen.add_push_member(ByteString::new(vec![c]), pos)?,
+            Some((c, pos)) if c.is_ascii_uppercase() => gen.add_push_global(ByteString::new(vec![c]), pos)?,
+            Some((c, pos)) if c.is_ascii_digit() => gen.add_duplicate(c - ('0' as u8), pos),
+            Some((b'$', pos)) => {
+                gen.add_push_self(pos);
+                gen.add_store(pos);
             },
-            Some(b'!') => {
-                gen.add_load();
-                gen.add_instantiate();
-                gen.add_store_keep();
-                gen.add_construct();
+            Some((b'!', pos)) => {
+                gen.add_load(pos);
+                gen.add_instantiate(pos);
+                gen.add_store_keep(pos);
+                gen.add_construct(pos);
             },
-            Some(b'/') => {
-                let loop_name = match parse_name(iter) {
+            Some((b'/', pos)) => {
+                let loop_name = match parse_name(reader) {
                     Some(name) => name,
                     None => return Err(ParseError::MissingLoopName),
                 };
 
-                gen.add_push_name(loop_name.clone())?;
-                gen.add_load();
-                loop_stack.push((loop_name, gen.add_jump_if_not()))
+                gen.add_push_name(loop_name.clone(), pos)?;
+                gen.add_load(pos);
+                loop_stack.push((loop_name, gen.add_jump_if_not(pos)))
             },
-            Some(b'\\') => {
+            Some((b'\\', pos)) => {
                 match loop_stack.pop() {
                     None => return Err(ParseError::InvalidChar),
                     Some((loop_name, loop_start)) => {
-                        gen.add_push_name(loop_name)?;
-                        gen.add_load();
-                        gen.add_jump_if(loop_start)?;
+                        gen.add_push_name(loop_name, pos)?;
+                        gen.add_load(pos);
+                        gen.add_jump_if(loop_start, pos)?;
                     }
                 }
             },
-            Some(b'(') => {
+            Some((b'(', pos)) => {
                 let mut name = ByteString::new(vec![]);
                 loop {
-                    match iter.next() {
-                        Some(b')') => {
+                    match reader.next() {
+                        Some((b')', _)) => {
                             if valid_name(&name) {
-                                gen.add_push_name(name)?;
+                                gen.add_push_name(name, pos)?;
                                 break;
                             }
                             else {
-                                gen.add_duplicate(get_integer(&name)?);
+                                gen.add_duplicate(get_integer(&name)?, pos);
                                 break;
                             }
                         }
-                        Some(c) => name.push(*c),
+                        Some((c, _)) => name.push(c),
                         None => return Err(ParseError::UnendedParentheses),
                     }
                 }
             },
-            Some(b'"') => {
+            Some((b'"', pos)) => {
                 let mut string = ByteString::new(vec![]);
                 loop {
-                    match iter.next() {
-                        Some(b'"') => {
-                            gen.add_push_string(string)?;
+                    match reader.next() {
+                        Some((b'"', _)) => {
+                            gen.add_push_string(string, pos)?;
                             break;
                         }
-                        Some(b'\\') => {
-                            match iter.next() {
-                                Some(b'n') => string.push(b'\n'),
-                                Some(c) => string.push(*c),
+                        Some((b'\\', _)) => {
+                            match reader.next() {
+                                Some((b'n', _)) => string.push(b'\n'),
+                                Some((c, _)) => string.push(c),
                                 None => return Err(ParseError::UnendedString),
                             }
                         }
-                        Some(c) => string.push(*c),
+                        Some((c, _)) => string.push(c),
                         None => return Err(ParseError::UnendedString),
                     }
                 }
             },
-            Some(b'<') => {
+            Some((b'<', pos)) => {
                 let mut num_str = String::new();
                 loop {
-                    match iter.next() {
-                        Some(b'>') => {
+                    match reader.next() {
+                        Some((b'>', _)) => {
                             let number = match f64::from_str(&num_str) {
                                 Ok(num) => num,
                                 Err(_) => return Err(ParseError::InvalidNumber),
                             };
 
-                            gen.add_push_number(number)?;
+                            gen.add_push_number(number, pos)?;
                             break;
                         },
-                        Some(c) => num_str.push(*c as char),
+                        Some((c, _)) => num_str.push(c as char),
                         None => return Err(ParseError::UnendedNumber),
                     }
                 }
             },
-            Some(b']') => {
+            Some((b']', pos)) => {
                 if !loop_stack.is_empty() {
                     return Err(ParseError::UnendedLoop);
                 }
 
-                gen.add_return();
+                gen.add_return(pos);
                 return Ok(());
             },
             Some(_) => return Err(ParseError::InvalidChar),
@@ -691,23 +763,23 @@ fn parse_function(iter: &mut Peekable<Iter<u8>>, class: &mut ClassDefinition, ge
     Err(ParseError::UnendedFunc)
 }
 
-fn parse_class(iter: &mut Peekable<Iter<u8>>, gen: &mut BytecodeGenerator) -> Result<(), ParseError> {
-    assert!(match iter.next() { Some(b'{') => true, _ => false });
+fn parse_class(reader: &mut CodeReader, gen: &mut BytecodeGenerator) -> Result<(), ParseError> {
+    assert!(match reader.next() { Some((b'{', _)) => true, _ => false });
 
-    let name = match parse_name(iter) {
+    let name = match parse_name(reader) {
         Some(name) => name,
         None => return Err(ParseError::MissingClassName),
     };
 
     let mut class = ClassDefinition::new();
 
-    while skip_whitespace(iter) {
-        match iter.peek() {
+    while skip_whitespace(reader) {
+        match reader.peek() {
             Some(b'[') => {
-                parse_function(iter, &mut class, gen)?;
+                parse_function(reader, &mut class, gen)?;
             },
             Some(b'}') => {
-                iter.next();
+                reader.next();
                 return gen.add_class(class, name);
             },
             Some(_) => {
@@ -720,15 +792,17 @@ fn parse_class(iter: &mut Peekable<Iter<u8>>, gen: &mut BytecodeGenerator) -> Re
     Err(ParseError::UnendedClass)
 }
 
-pub fn parse_program(code: &[u8]) -> Result<BytecodeProgram, ParseError> {
+pub fn parse_program(code: &[u8], filename: String) -> Result<BytecodeProgram, ParseError> {
     let mut gen = BytecodeGenerator::new();
-    let mut iter = code.iter().peekable();
+    let mut reader = CodeReader::new(code);
 
     add_builtin_classes(&mut gen);
 
-    while skip_whitespace(&mut iter) {
-        match iter.peek() {
-            Some(b'{') => parse_class(&mut iter, &mut gen)?,
+    gen.set_filename(filename);
+
+    while skip_whitespace(&mut reader) {
+        match reader.peek() {
+            Some(b'{') => parse_class(&mut reader, &mut gen)?,
             _ => return Err(ParseError::InvalidChar),
         }
     }

@@ -87,6 +87,12 @@ pub enum RuntimeError {
     WrongType,
 }
 
+pub struct ExecutionError {
+    pub error: RuntimeError,
+
+    pub stack_trace: Vec<OpcodeIndex>,
+}
+
 fn instantiate<'a>(instances: &mut Vec<GlassInstance<'a>>, class: &'a ClassDefinition) -> InstanceIndex {
     instances.push(GlassInstance {
         class: &class,
@@ -134,10 +140,9 @@ fn get_index(string: &ByteString, num: f64) -> Result<usize, RuntimeError> {
     }
 }
 
-pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
+fn run_program(program: &BytecodeProgram, opcode_index: &mut usize, func_stack: &mut Vec<(InstanceIndex, OpcodeIndex, HashMap<LocalName, GlassValue>)>) -> Result<(), RuntimeError> {
     let mut instances = Vec::new();
     let mut strings = Vec::new();
-    let mut func_stack = Vec::new();
     let mut value_stack = Vec::new();
     let mut globals = HashMap::new();
     let mut cur_object = 0 as InstanceIndex;
@@ -160,10 +165,10 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
         strings.push(string.clone());
     }
 
-    let mut opcode_index = instances[cur_object as usize].class.funcs[&program.main_func] as usize;
+    *opcode_index = instances[cur_object as usize].class.funcs[&program.main_func] as usize;
 
     loop {
-        match program.instructions[opcode_index] {
+        match program.instructions[*opcode_index] {
             OPCODE_ADD => {
                 let num1 = pop_number(&mut value_stack)?;
                 let num2 = pop_number(&mut value_stack)?;
@@ -172,10 +177,10 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
             OPCODE_CALL => {
                 match value_stack.pop() {
                     Some(GlassValue::Function(call_inst, call_op)) => {
-                        func_stack.push((cur_object, opcode_index, locals));
+                        func_stack.push((cur_object, *opcode_index, locals));
                         locals = HashMap::new();
                         cur_object = call_inst;
-                        opcode_index = call_op as usize;
+                        *opcode_index = call_op as usize;
                         continue;
                     },
                     Some(_) => return Err(RuntimeError::WrongType),
@@ -195,10 +200,10 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                         match instances[inst_index].class.constructor {
                             None => (),
                             Some(ctor_index) => {
-                                func_stack.push((cur_object, opcode_index, locals));
+                                func_stack.push((cur_object, *opcode_index, locals));
                                 locals = HashMap::new();
                                 cur_object = inst_index;
-                                opcode_index = ctor_index;
+                                *opcode_index = ctor_index;
                                 continue;
                             },
                         }
@@ -213,12 +218,12 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                 value_stack.push(GlassValue::Number(num2 / num1));
             },
             OPCODE_DUPLICATE => {
-                let dup_index = program.instructions[opcode_index + 1];
+                let dup_index = program.instructions[*opcode_index + 1];
                 if dup_index as usize >= value_stack.len() {
                     return Err(RuntimeError::EmptyStack);
                 }
                 value_stack.push(value_stack[value_stack.len() - (dup_index as usize) - 1]);
-                opcode_index += 1;
+                *opcode_index += 1;
             },
             OPCODE_EQUAL => {
                 let num1 = pop_number(&mut value_stack)?;
@@ -298,9 +303,9 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                     None => return Err(RuntimeError::EmptyStack),
                 };
 
-                let jump_amount = read_short(&program.instructions, &mut opcode_index);
+                let jump_amount = read_short(&program.instructions, opcode_index);
                 if should_jump {
-                    opcode_index -= jump_amount as usize;
+                    *opcode_index -= jump_amount as usize;
                 }
             },
             OPCODE_JUMP_IF_NOT => {
@@ -311,9 +316,9 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                     None => return Err(RuntimeError::EmptyStack),
                 };
 
-                let jump_amount = read_short(&program.instructions, &mut opcode_index);
+                let jump_amount = read_short(&program.instructions, opcode_index);
                 if should_jump {
-                    opcode_index += jump_amount as usize;
+                    *opcode_index += jump_amount as usize;
                 }
             },
             OPCODE_LENGTH => {
@@ -466,33 +471,33 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
                 }
             },
             OPCODE_PUSH_GLOBAL => {
-                let name = read_short(&program.instructions, &mut opcode_index);
+                let name = read_short(&program.instructions, opcode_index);
                 value_stack.push(GlassValue::GlobalName(name as GlobalName));
             },
             OPCODE_PUSH_LOCAL => {
-                let name = read_short(&program.instructions, &mut opcode_index);
+                let name = read_short(&program.instructions, opcode_index);
                 value_stack.push(GlassValue::LocalName(name as LocalName));
             },
             OPCODE_PUSH_MEMBER => {
-                let name = read_short(&program.instructions, &mut opcode_index);
+                let name = read_short(&program.instructions, opcode_index);
                 value_stack.push(GlassValue::MemberName(name as MemberName));
             },
             OPCODE_PUSH_NUMBER => {
-                let num_index = read_short(&program.instructions, &mut opcode_index);
+                let num_index = read_short(&program.instructions, opcode_index);
                 value_stack.push(GlassValue::Number(program.numbers[num_index as usize]));
             },
             OPCODE_PUSH_SELF => {
                 value_stack.push(GlassValue::Instance(cur_object));
             },
             OPCODE_PUSH_STRING => {
-                let str_index = read_short(&program.instructions, &mut opcode_index);
+                let str_index = read_short(&program.instructions, opcode_index);
                 value_stack.push(GlassValue::String(str_index as StringIndex));
             },
             OPCODE_RETURN => {
                 match func_stack.pop() {
                     Some((call_inst, call_op, local_vars)) => {
                         cur_object = call_inst;
-                        opcode_index = call_op;
+                        *opcode_index = call_op;
                         locals = local_vars;
                     },
                     None => {
@@ -609,6 +614,23 @@ pub fn execute_program(program: &BytecodeProgram) -> Result<(), RuntimeError> {
             _ => unreachable!(),
         }
 
-        opcode_index += 1;
+        *opcode_index += 1;
+    }
+}
+
+pub fn execute_program(program: &BytecodeProgram) -> Result<(), ExecutionError> {
+    let mut func_stack = Vec::new();
+    let mut opcode_index = 0;
+
+    match run_program(program, &mut opcode_index, &mut func_stack) {
+        Ok(_) => Ok(()),
+        Err(err) => {
+            let mut stack_trace = Vec::new();
+            for (_, opcode_index, _) in func_stack {
+                stack_trace.push(opcode_index);
+            }
+            stack_trace.push(opcode_index);
+            Err(ExecutionError { error: err, stack_trace: stack_trace })
+        },
     }
 }
