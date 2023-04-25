@@ -27,24 +27,28 @@ fn get_stacktrace_line(program: &BytecodeProgram, index: OpcodeIndex) -> String 
 }
 
 fn main() {
-    let args: Vec<String> = std::env::args().collect();
-    if args.len() != 2 {
-        eprintln!("Usage: {} <glass-file>", args[0]);
+    let mut args = std::env::args();
+    if args.len() < 2 {
+        eprintln!("Usage: {} <glass-file>", args.nth(0).expect("nameless executable?"));
         std::process::exit(1);
     }
 
-    let mut file = match File::open(args[1].clone()) {
-        Ok(file) => file,
-        Err(err) => {
-            eprintln!("{:?}", err);
-            std::process::exit(1);
-        },
-    };
+    let mut files = Vec::new();
+    for arg in args.skip(1) {
+        let mut file = match File::open(arg.clone()) {
+            Ok(file) => file,
+            Err(err) => {
+                eprintln!("{:?}", err);
+                std::process::exit(1);
+            },
+        };
 
-    let mut file_content = Vec::new();
-    file.read_to_end(&mut file_content).expect("Error reading file!");
+        let mut file_content = Vec::new();
+        file.read_to_end(&mut file_content).expect("Error reading file!");
+        files.push((arg, file_content));
+    }
 
-    match parse_program(&file_content, args[1].clone()) {
+    match parse_program(&files) {
         Ok(program) => {
             match execute_program(&program) {
                 Ok(_) => (),

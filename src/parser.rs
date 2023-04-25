@@ -792,18 +792,20 @@ fn parse_class(reader: &mut CodeReader, gen: &mut BytecodeGenerator) -> Result<(
     Err(ParseError::UnendedClass)
 }
 
-pub fn parse_program(code: &[u8], filename: String) -> Result<BytecodeProgram, ParseError> {
+pub fn parse_program(files: &Vec<(String, Vec<u8>)>) -> Result<BytecodeProgram, ParseError> {
     let mut gen = BytecodeGenerator::new();
-    let mut reader = CodeReader::new(code);
 
     add_builtin_classes(&mut gen);
 
-    gen.set_filename(filename);
+    for (filename, code) in files {
+        let mut reader = CodeReader::new(code);
+        gen.set_filename(filename.clone());
 
-    while skip_whitespace(&mut reader) {
-        match reader.peek() {
-            Some(b'{') => parse_class(&mut reader, &mut gen)?,
-            _ => return Err(ParseError::InvalidChar),
+        while skip_whitespace(&mut reader) {
+            match reader.peek() {
+                Some(b'{') => parse_class(&mut reader, &mut gen)?,
+                _ => return Err(ParseError::InvalidChar),
+            }
         }
     }
 

@@ -64,7 +64,7 @@ Glass Interpreter Feature List:
         - [x] `n` function
 - [ ] Other features:
     - [ ] Garbage collection
-    - [ ] Multi-file programs
+    - [x] Multi-file programs
     - [ ] Reporting multiple error messages when parsing
     - [ ] Meaningful error messages for parse errors
     - [x] Stack traces for runtime errors
